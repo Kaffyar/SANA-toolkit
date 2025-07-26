@@ -267,9 +267,13 @@ def verify_otp_page():
         flash(error_msg, 'error')
         return redirect(url_for('auth.login'))
     
+    # Get additional session data for database fallback
+    temp_user_id = session.get('temp_user_id')
+    
     return render_template('auth/verify_otp.html', 
                          email=session_data['email'],
-                         otp_type=session_data['otp_type'])
+                         otp_type=session_data['otp_type'],
+                         temp_user_id=temp_user_id)
 
 @auth_bp.route('/api/send-login-otp', methods=['POST'])
 def send_login_otp():

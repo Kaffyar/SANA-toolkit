@@ -578,7 +578,8 @@ class SANAAuth {
         }
         
         try {
-            const response = await fetch(this.config.endpoints.verifyOTP, {
+            // First, try the regular OTP verification endpoint
+            let response = await fetch(this.config.endpoints.verifyOTP, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -586,7 +587,63 @@ class SANAAuth {
                 body: JSON.stringify(requestData)
             });
             
-            const data = await response.json();
+            let data = await response.json();
+            
+            // If the regular endpoint fails with session error, try database fallback
+            if (!response.ok && (data.message?.includes('Email is required') || data.message?.includes('Session not found'))) {
+                console.log('🔄 Session-based verification failed, trying database fallback...');
+                
+                // Get email from the page or form
+                const emailElement = document.querySelector('[data-email]') || 
+                                   document.querySelector('.email-display') ||
+                                   document.querySelector('.verification-email');
+                
+                let email = null;
+                if (emailElement) {
+                    email = emailElement.textContent || emailElement.getAttribute('data-email');
+                }
+                
+                // If we can't find email, try to extract from page text
+                if (!email) {
+                    const pageText = document.body.textContent;
+                    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                    if (emailMatch) {
+                        email = emailMatch[0];
+                    }
+                }
+                
+                if (email) {
+                    // Try database fallback endpoint
+                    const fallbackData = {
+                        email: email,
+                        otp_code: otpCode
+                    };
+                    
+                    if (password) {
+                        fallbackData.password = password;
+                    }
+                    
+                    // Get temp_user_id if available (for signup)
+                    const tempUserIdElement = document.querySelector('[data-temp-user-id]');
+                    const formElement = document.getElementById('otp-form');
+                    if (tempUserIdElement) {
+                        fallbackData.temp_user_id = tempUserIdElement.getAttribute('data-temp-user-id');
+                    } else if (formElement && formElement.hasAttribute('data-temp-user-id')) {
+                        fallbackData.temp_user_id = formElement.getAttribute('data-temp-user-id');
+                    }
+                    
+                    response = await fetch('/auth/api/verify-otp-db', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(fallbackData)
+                    });
+                    
+                    data = await response.json();
+                    console.log('🔄 Database fallback result:', data);
+                }
+            }
             
             if (response.ok && data.status === 'success') {
                 // Clear timers

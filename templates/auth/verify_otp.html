@@ -17,7 +17,7 @@
             </h2>
             <p class="form-subtitle">
                 We sent a 6-digit verification code to<br>
-                <strong class="email-display">{{ email }}</strong>
+                <strong class="email-display" data-email="{{ email }}">{{ email }}</strong>
             </p>
         </div>
         
@@ -28,7 +28,8 @@
     </div>
 
     <!-- OTP Verification Form -->
-    <form id="otp-form" class="auth-form" novalidate>
+    <form id="otp-form" class="auth-form" novalidate
+          {% if temp_user_id %}data-temp-user-id="{{ temp_user_id }}"{% endif %}>
         <!-- OTP Input -->
         <div class="form-group">
             <label for="otp-input" class="form-label">
