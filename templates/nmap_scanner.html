@@ -8,9 +8,33 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/nmap-scanner.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nmap-warning.css') }}">
 {% endblock %}
 
 {% block content %}
+
+<!-- Nmap Availability Warning -->
+{% if not nmap_available %}
+<div class="alert alert-warning nmap-warning" style="margin-bottom: 20px;">
+    <div class="alert-header">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h4>Nmap Not Available</h4>
+    </div>
+    <div class="alert-content">
+        <p><strong>Network scanning features are not available on this system.</strong></p>
+        <p>Nmap is required for port scanning and network analysis. These features are not available in cloud deployments for security reasons.</p>
+        <div class="installation-guide">
+            <strong>Installation Guide:</strong>
+            <ul>
+                <li><strong>Windows:</strong> Download and install nmap from https://nmap.org/download.html</li>
+                <li><strong>Linux:</strong> sudo apt-get install nmap (Ubuntu/Debian) or sudo yum install nmap (CentOS/RHEL)</li>
+                <li><strong>macOS:</strong> brew install nmap (using Homebrew)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Advanced Hero Section with Real-time Stats -->
 <div class="hero-scanner-section">
     <div class="hero-background"></div>
@@ -34,11 +58,11 @@
             </div>
         </div>
         <div class="hero-actions">
-            <button type="button" class="btn btn-hero-primary" id="focus-scan-btn">
+            <button type="button" class="btn btn-hero-primary" id="focus-scan-btn" {% if not nmap_available %}disabled{% endif %}>
                 <i class="fas fa-rocket"></i>
                 Launch Scanner
             </button>
-            <button class="btn btn-hero-secondary" id="local-scan-btn">
+            <button class="btn btn-hero-secondary" id="local-scan-btn" {% if not nmap_available %}disabled{% endif %}>
                 <i class="fas fa-network-wired"></i>
                 Quick Local Scan
             </button>

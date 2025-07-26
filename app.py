@@ -5,7 +5,6 @@ Now with comprehensive scan history tracking for all scan types
 
 # Import necessary libraries
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
-import nmap  # Python library for Nmap (Network Mapper) functionality
 import os    # For operating system related functionality
 import datetime
 import json
@@ -15,6 +14,22 @@ import ipaddress
 import subprocess
 import time
 from typing import Dict, List
+
+# Import nmap utilities
+try:
+    from utils.nmap_utils import get_nmap_scanner, is_nmap_available, get_nmap_unavailable_message
+except ImportError:
+    # Fallback if utils module doesn't exist
+    def get_nmap_scanner():
+        return None
+    def is_nmap_available():
+        return False
+    def get_nmap_unavailable_message():
+        return {
+            "available": False,
+            "message": "Nmap is not available",
+            "details": "Network scanning features require nmap to be installed locally."
+        }
 
 # Import all route blueprints
 from routes.dns_recon_route import dns_recon_bp
@@ -101,8 +116,8 @@ def create_app():
 # Create the Flask app
 app = create_app()
 
-# Initialize nmap scanner
-nm = nmap.PortScanner()
+# Initialize nmap scanner (will be None if nmap is not available)
+nm = get_nmap_scanner()
 
 # ===== MAIN ROUTES ===== #
 
@@ -116,7 +131,8 @@ def index():
 @login_required
 def nmap_scanner():
     # Return the network scanning interface page
-    return render_template('nmap_scanner.html')
+    nmap_available = is_nmap_available()
+    return render_template('nmap_scanner.html', nmap_available=nmap_available)
 
 
 
@@ -133,6 +149,14 @@ def vulnerability_scanner():
 def nmap_scan():
     """Enhanced network scanning with comprehensive history tracking"""
     scan_start_time = time.time()  # Track scan duration
+    
+    # Check if nmap is available
+    if not is_nmap_available():
+        return jsonify({
+            'status': 'error',
+            'message': 'Nmap is not available on this system',
+            'details': get_nmap_unavailable_message()
+        }), 503
     
     try:
         # Get the JSON data from the request
@@ -328,6 +352,14 @@ def vulnerability_scan():
     """Enhanced vulnerability scanning with comprehensive history tracking"""
     import requests
     scan_start_time = time.time()
+    
+    # Check if nmap is available
+    if not is_nmap_available():
+        return jsonify({
+            'status': 'error',
+            'message': 'Nmap is not available on this system',
+            'details': get_nmap_unavailable_message()
+        }), 503
     
     try:
         # Get the JSON data from the request

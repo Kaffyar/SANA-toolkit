@@ -8,9 +8,41 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/host-discovery.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nmap-warning.css') }}">
 {% endblock %}
 
 {% block content %}
+
+<!-- Nmap Availability Warning -->
+{% if not nmap_available %}
+<div class="alert alert-warning nmap-warning animate-fade-up" style="margin-bottom: 20px;">
+    <div class="alert-header">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h4>Nmap Not Available</h4>
+    </div>
+    <div class="alert-content">
+        <p><strong>{{ nmap_message.message }}</strong></p>
+        <p>{{ nmap_message.details }}</p>
+        <div class="affected-features">
+            <strong>Features affected:</strong>
+            <ul>
+                {% for feature in nmap_message.features_affected %}
+                <li>{{ feature }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="installation-guide">
+            <strong>Installation Guide:</strong>
+            <ul>
+                <li><strong>Windows:</strong> {{ nmap_message.installation_guide.windows }}</li>
+                <li><strong>Linux:</strong> {{ nmap_message.installation_guide.linux }}</li>
+                <li><strong>macOS:</strong> {{ nmap_message.installation_guide.macos }}</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Hero Section with Two-Column Layout (Like Network Scanner) -->
 <div class="discovery-hero animate-fade-up">
     <!-- LEFT SIDE: Content -->
@@ -44,11 +76,11 @@
         </div>
         
         <div class="hero-actions">
-<button type="button" class="btn btn-hero-primary" id="discovery-btn">
-    <i class="fas fa-play"></i>
-    Start Discovery
-</button>
-            <button class="btn btn-hero-secondary" id="quick-scan-btn">
+            <button type="button" class="btn btn-hero-primary" id="discovery-btn" {% if not nmap_available %}disabled{% endif %}>
+                <i class="fas fa-play"></i>
+                Start Discovery
+            </button>
+            <button class="btn btn-hero-secondary" id="quick-scan-btn" {% if not nmap_available %}disabled{% endif %}>
                 <i class="fas fa-zap"></i>
                 Quick Scan
             </button>

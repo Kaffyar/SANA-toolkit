@@ -255,18 +255,15 @@ class DatabaseInitializer:
         """Create the user_settings table for user preferences"""
         create_settings_sql = """
         CREATE TABLE IF NOT EXISTS user_settings (
-            user_id INTEGER PRIMARY KEY,
-            theme TEXT DEFAULT 'dark' CHECK (theme IN ('dark', 'light', 'auto')),
-            scan_timeout INTEGER DEFAULT 60 CHECK (scan_timeout >= 30 AND scan_timeout <= 3600),
-            virustotal_api_key TEXT,
-            history_cleanup_days INTEGER DEFAULT 90 CHECK (history_cleanup_days >= 0),
-            notifications_enabled BOOLEAN DEFAULT TRUE,
-            auto_save_results BOOLEAN DEFAULT TRUE,
-            scan_verbosity TEXT DEFAULT 'normal' CHECK (scan_verbosity IN ('minimal', 'normal', 'verbose')),
+            setting_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            setting_key TEXT NOT NULL,
+            setting_value TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             
-            FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+            FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+            UNIQUE(user_id, setting_key)
         );
         """
         

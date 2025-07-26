@@ -4,7 +4,6 @@ Advanced host discovery functionality with comprehensive network scanning + Scan
 """
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect
-import nmap
 import ipaddress
 import re
 import logging
@@ -16,6 +15,22 @@ import socket
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 import os
+
+# Import nmap utilities
+try:
+    from utils.nmap_utils import get_nmap_scanner, is_nmap_available, get_nmap_unavailable_message
+except ImportError:
+    # Fallback if utils module doesn't exist
+    def get_nmap_scanner():
+        return None
+    def is_nmap_available():
+        return False
+    def get_nmap_unavailable_message():
+        return {
+            "available": False,
+            "message": "Nmap is not available",
+            "details": "Host discovery features require nmap to be installed locally."
+        }
 
 # ===== NEW: Import authentication and scan history =====
 try:
@@ -39,8 +54,8 @@ logger = logging.getLogger(__name__)
 # Create blueprint
 host_discovery_bp = Blueprint('host_discovery', __name__)
 
-# Global nmap scanner instance
-nm = nmap.PortScanner()
+# Global nmap scanner instance (will be None if nmap is not available)
+nm = get_nmap_scanner()
 
 # Active discovery sessions
 active_discoveries = {}
@@ -587,13 +602,21 @@ def host_discovery_page():
         # Clean up old sessions
         cleanup_old_discoveries()
         
+        # Check nmap availability
+        nmap_available = is_nmap_available()
+        nmap_message = None
+        if not nmap_available:
+            nmap_message = get_nmap_unavailable_message()
+        
         # Get current statistics
         context = {
             'total_discoveries': get_total_discoveries_performed(),
             'total_hosts_found': get_total_hosts_found(),
             'active_sessions': len(active_discoveries),
             'page_title': 'Host Discovery',
-            'current_year': datetime.now().year
+            'current_year': datetime.now().year,
+            'nmap_available': nmap_available,
+            'nmap_message': nmap_message
         }
         
         return render_template('host_discovery.html', **context)
@@ -606,6 +629,15 @@ def host_discovery_page():
 @login_required  # ✅ NEW: Added authentication
 def start_host_discovery():
     scan_start_time = time.time()  # ✅ NEW: Track scan duration
+    
+    # Check if nmap is available
+    if not is_nmap_available():
+        return jsonify({
+            'status': 'error',
+            'message': 'Nmap is not available on this system',
+            'details': get_nmap_unavailable_message()
+        }), 503
+    
     try:
         data = request.get_json()
         if not data:

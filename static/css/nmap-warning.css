@@ -1,0 +1,126 @@
+/* Nmap Warning Alert Styles */
+.nmap-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #ffc107;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.nmap-warning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ffc107, #ff8f00, #ffc107);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.nmap-warning .alert-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 12px;
+}
+
+.nmap-warning .alert-header i {
+    font-size: 24px;
+    color: #856404;
+}
+
+.nmap-warning .alert-header h4 {
+    margin: 0;
+    color: #856404;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.nmap-warning .alert-content {
+    color: #856404;
+}
+
+.nmap-warning .alert-content p {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+
+.nmap-warning .affected-features {
+    margin: 15px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    border-left: 4px solid #ffc107;
+}
+
+.nmap-warning .affected-features ul {
+    margin: 8px 0 0 20px;
+    padding: 0;
+}
+
+.nmap-warning .affected-features li {
+    margin: 4px 0;
+    font-weight: 500;
+}
+
+.nmap-warning .installation-guide {
+    margin: 15px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+}
+
+.nmap-warning .installation-guide ul {
+    margin: 8px 0 0 20px;
+    padding: 0;
+}
+
+.nmap-warning .installation-guide li {
+    margin: 6px 0;
+    line-height: 1.5;
+}
+
+.nmap-warning .installation-guide strong {
+    color: #155724;
+}
+
+/* Disabled button styles */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #6c757d !important;
+    border-color: #6c757d !important;
+    color: #fff !important;
+}
+
+.btn:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Animation for the warning */
+.nmap-warning.animate-fade-up {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+} 
