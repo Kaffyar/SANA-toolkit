@@ -1,0 +1,677 @@
+{% extends "base.html" %}
+
+{% block title %}DNS Reconnaissance - SANA Toolkit{% endblock %}
+
+{% block page_icon %}<i class="sana-s-icon"></i>{% endblock %}
+{% block page_title %}DNS Reconnaissance{% endblock %}
+{% block page_subtitle %}Advanced Domain Name System Analysis & Intelligence Gathering{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dns-recon.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section with DNS Visualization -->
+<div class="dns-hero-section animate-fade-up">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1 class="hero-title">DNS Intelligence Platform</h1>
+            <p class="hero-subtitle">Comprehensive domain reconnaissance with advanced DNS record analysis, subdomain enumeration, and security assessment capabilities</p>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.1s;">
+                <div class="stat-value" id="total-dns-lookups">{{ total_lookups or 0 }}</div>
+                <div class="stat-label">DNS Queries</div>
+            </div>
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.2s;">
+                <div class="stat-value" id="domains-analyzed">{{ total_domains or 0 }}</div>
+                <div class="stat-label">Domains Analyzed</div>
+            </div>
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.3s;">
+                <div class="stat-value" id="subdomains-found">{{ total_subdomains or 0 }}</div>
+                <div class="stat-label">Subdomains Found</div>
+            </div>
+        </div>
+        <div class="hero-actions">
+            <button type="button" class="btn btn-hero-primary hover-lift" id="focus-dns-btn">
+                <i class="fas fa-search"></i>
+                Start DNS Lookup
+            </button>
+            <button class="btn btn-hero-secondary hover-lift" id="quick-reverse-btn">
+                <i class="fas fa-exchange-alt"></i>
+                Reverse DNS
+            </button>
+            <a href="#examples" class="btn btn-hero-outline hover-lift">
+                <i class="fas fa-question-circle"></i>
+                View Examples
+            </a>
+        </div>
+    </div>
+    <div class="dns-visualization">
+        <div class="dns-resolver">
+            <div class="resolver-grid" id="resolver-grid">
+                <div class="dns-node root" data-tooltip="Root DNS Servers">
+                    <div class="node-pulse"></div>
+                    <i class="fas fa-globe"></i>
+                </div>
+                <div class="dns-node tld" data-tooltip="TLD Servers">
+                    <div class="node-pulse"></div>
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="dns-node authoritative" data-tooltip="Authoritative Servers">
+                    <div class="node-pulse"></div>
+                    <i class="fas fa-database"></i>
+                </div>
+                <div class="query-path" id="query-path"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DNS Analysis Configuration Panel -->
+<div class="dns-config-panel animate-fade-up" style="animation-delay: 0.2s;">
+    <div class="panel-header">
+        <div class="section-header">
+            <h3>
+                <i class="fas fa-cogs"></i>
+                DNS Analysis Configuration
+            </h3>
+            <p>Configure your DNS reconnaissance parameters for comprehensive domain analysis</p>
+        </div>
+        <div class="dns-progress-info" id="dns-progress-info" style="display: none;">
+            <div class="progress-item">
+                <i class="fas fa-clock text-primary"></i>
+                <span>Status: <strong id="dns-status">Ready</strong></span>
+            </div>
+            <div class="progress-item">
+                <i class="fas fa-percentage text-success"></i>
+                <span>Progress: <strong id="dns-progress">0%</strong></span>
+            </div>
+            <div class="progress-item">
+                <i class="fas fa-list text-info"></i>
+                <span>Records: <strong id="records-found">0</strong></span>
+            </div>
+            <div class="progress-item">
+                <i class="fas fa-sitemap text-warning"></i>
+                <span>Subdomains: <strong id="subdomains-discovered">0</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <form id="dns-form" class="enhanced-form">
+        <!-- Target Domain Section -->
+        <div class="form-section">
+            <div class="section-header">
+                <h4><i class="fas fa-bullseye"></i> Target Domain</h4>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="domain" class="form-label">
+                        <i class="fas fa-globe"></i>
+                        Domain Name
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" 
+                               id="domain" 
+                               name="domain" 
+                               class="form-control enhanced-input" 
+                               placeholder="example.com, google.com, github.io"
+                               autocomplete="off"
+                               required>
+                        <div class="input-validation" id="domain-validation"></div>
+                        <div class="input-suggestions" id="domain-suggestions"></div>
+                    </div>
+                    <div class="validation-message" id="domain-message"></div>
+                </div>
+                <div class="form-group">
+                    <label for="lookup-type" class="form-label">
+                        <i class="fas fa-list"></i>
+                        Lookup Method
+                    </label>
+                    <select id="lookup-type" name="lookupType" class="form-control enhanced-select">
+                        <option value="comprehensive">Comprehensive Analysis</option>
+                        <option value="basic">Basic DNS Records</option>
+                        <option value="security">Security Assessment</option>
+                        <option value="subdomain">Subdomain Focus</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- DNS Record Types Section -->
+        <div class="form-section">
+            <div class="section-header">
+                <h4><i class="fas fa-list-ul"></i> DNS Record Types</h4>
+            </div>
+            <div class="record-types-grid">
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-a" name="recordTypes" value="A" checked>
+                    <label for="record-a" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>A Record</h5>
+                            <p>IPv4 Address</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-aaaa" name="recordTypes" value="AAAA" checked>
+                    <label for="record-aaaa" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-network-wired"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>AAAA Record</h5>
+                            <p>IPv6 Address</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-mx" name="recordTypes" value="MX" checked>
+                    <label for="record-mx" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>MX Record</h5>
+                            <p>Mail Exchange</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-ns" name="recordTypes" value="NS" checked>
+                    <label for="record-ns" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>NS Record</h5>
+                            <p>Name Server</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-txt" name="recordTypes" value="TXT" checked>
+                    <label for="record-txt" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>TXT Record</h5>
+                            <p>Text Data</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-cname" name="recordTypes" value="CNAME">
+                    <label for="record-cname" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-link"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>CNAME Record</h5>
+                            <p>Canonical Name</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-soa" name="recordTypes" value="SOA">
+                    <label for="record-soa" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>SOA Record</h5>
+                            <p>Start of Authority</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="record-type-card">
+                    <input type="checkbox" id="record-ptr" name="recordTypes" value="PTR">
+                    <label for="record-ptr" class="record-label">
+                        <div class="record-icon">
+                            <i class="fas fa-undo"></i>
+                        </div>
+                        <div class="record-info">
+                            <h5>PTR Record</h5>
+                            <p>Reverse DNS</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Options Section -->
+        <div class="form-section">
+            <div class="section-header">
+                <h4><i class="fas fa-cog"></i> Advanced Options</h4>
+            </div>
+            <div class="advanced-options-grid">
+                <div class="option-toggle">
+                    <input type="checkbox" id="include-subdomains" name="includeSubdomains">
+                    <label for="include-subdomains" class="toggle-label">
+                        <div class="toggle-icon">
+                            <i class="fas fa-sitemap"></i>
+                        </div>
+                        <div class="toggle-info">
+                            <h5>Subdomain Enumeration</h5>
+                            <p>Discover subdomains using wordlist</p>
+                        </div>
+                        <div class="toggle-switch"></div>
+                    </label>
+                </div>
+                <div class="option-toggle">
+                    <input type="checkbox" id="include-zone-transfer" name="includeZoneTransfer">
+                    <label for="include-zone-transfer" class="toggle-label">
+                        <div class="toggle-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="toggle-info">
+                            <h5>Zone Transfer Test</h5>
+                            <p>Attempt AXFR zone transfers</p>
+                        </div>
+                        <div class="toggle-switch"></div>
+                    </label>
+                </div>
+                <div class="option-toggle">
+                    <input type="checkbox" id="include-whois" name="includeWhois">
+                    <label for="include-whois" class="toggle-label">
+                        <div class="toggle-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="toggle-info">
+                            <h5>WHOIS Information</h5>
+                            <p>Retrieve domain registration data</p>
+                        </div>
+                        <div class="toggle-switch"></div>
+                    </label>
+                </div>
+                <div class="option-toggle">
+                    <input type="checkbox" id="include-security" name="includeSecurity">
+                    <label for="include-security" class="toggle-label">
+                        <div class="toggle-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="toggle-info">
+                            <h5>Security Analysis</h5>
+                            <p>Check DNSSEC, SPF, DMARC</p>
+                        </div>
+                        <div class="toggle-switch"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Launch Section -->
+        <div class="launch-section animate-fade-up" style="animation-delay: 0.7s;">
+            <button type="submit" class="btn btn-dns-launch gpu-accelerated" id="dns-btn">
+                <div class="btn-content">
+                    <i class="sana-s-logo"></i>
+                    <span class="btn-text">Start DNS Analysis</span>
+                </div>
+                <div class="btn-effects">
+                    <div class="ripple"></div>
+                    <div class="glow"></div>
+                </div>
+            </button>
+            <div class="launch-info">
+                <p>Domain validation: <span id="domain-validation-status" class="status-pending">Pending</span></p>
+                <p>DNS servers: <span id="dns-servers-info">Multiple Ready</span></p>
+                <p>Estimated time: <span id="estimated-time">~45 seconds</span></p>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- DNS Analysis Status Panel -->
+<div id="dns-status-panel" class="dns-status-panel animate-fade-up" style="display: none;">
+    <div class="status-header">
+        <h3>
+            <i class="sana-s-logo"></i> 
+            DNS Analysis in Progress
+        </h3>
+        <button class="btn btn-outline btn-sm hover-lift" id="cancel-dns" data-tooltip="Cancel current analysis">
+            <i class="fas fa-stop"></i> Cancel
+        </button>
+    </div>
+    
+    <div class="dns-visualization-panel">
+        <div class="dns-query-tracker">
+            <div class="tracker-background">
+                <div class="query-flow" id="query-flow">
+                    <!-- Dynamic query visualization will be added here -->
+                </div>
+            </div>
+            <div class="query-sweep"></div>
+        </div>
+        
+        <div class="analysis-details">
+            <div class="analysis-phase">
+                <h4>Current Phase:</h4>
+                <p id="current-dns-phase">Initializing DNS Resolution</p>
+            </div>
+            <div class="analysis-stats-live">
+                <div class="live-stat">
+                    <span class="stat-label">Records Found:</span>
+                    <span class="stat-value" id="live-records">0</span>
+                </div>
+                <div class="live-stat">
+                    <span class="stat-label">Subdomains:</span>
+                    <span class="stat-value" id="live-subdomains">0</span>
+                </div>
+                <div class="live-stat">
+                    <span class="stat-label">Progress:</span>
+                    <span class="stat-value" id="live-dns-progress">0%</span>
+                </div>
+                <div class="live-stat">
+                    <span class="stat-label">Response Time:</span>
+                    <span class="stat-value" id="live-response-time">0ms</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="progress-section">
+        <div class="progress-header">
+            <span class="progress-label">DNS Analysis Progress</span>
+            <span class="progress-text">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: 0%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- DNS Results Panel -->
+<div id="dns-results-section" class="results-panel" style="display: none;">
+    <div class="results-header">
+        <div class="results-title">
+            <h3><i class="fas fa-chart-line"></i> DNS Analysis Results</h3>
+            <p>Comprehensive domain intelligence and security assessment</p>
+        </div>
+        <div class="results-actions">
+            <button class="btn btn-outline" id="export-dns-json">
+                <i class="fas fa-download"></i> Export JSON
+            </button>
+            <button class="btn btn-outline" id="export-dns-csv">
+                <i class="fas fa-file-csv"></i> Export CSV
+            </button>
+            <button class="btn btn-primary" id="new-dns-analysis">
+                <i class="fas fa-plus"></i> New Analysis
+            </button>
+        </div>
+    </div>
+
+    <!-- DNS Overview -->
+    <div class="dns-overview">
+        <div class="overview-stats">
+            <div class="overview-card">
+                <div class="card-icon">
+                    <i class="fas fa-list"></i>
+                </div>
+                <div class="card-content">
+                    <h4 id="total-records-found">0</h4>
+                    <p>DNS Records</p>
+                </div>
+            </div>
+            <div class="overview-card">
+                <div class="card-icon">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                <div class="card-content">
+                    <h4 id="total-subdomains-found">0</h4>
+                    <p>Subdomains</p>
+                </div>
+            </div>
+            <div class="overview-card">
+                <div class="card-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="card-content">
+                    <h4 id="security-score">--</h4>
+                    <p>Security Score</p>
+                </div>
+            </div>
+            <div class="overview-card">
+                <div class="card-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="card-content">
+                    <h4 id="analysis-duration">--</h4>
+                    <p>Analysis Time</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DNS Records Section -->
+    <div class="dns-records-section" id="dns-records-section">
+        <h4><i class="fas fa-database"></i> DNS Records</h4>
+        <div class="records-container" id="records-container">
+            <!-- DNS records will be populated here -->
+        </div>
+    </div>
+
+    <!-- Subdomains Section -->
+    <div class="subdomains-section" id="subdomains-section" style="display: none;">
+        <h4><i class="fas fa-sitemap"></i> Discovered Subdomains</h4>
+        <div class="subdomains-container" id="subdomains-container">
+            <!-- Subdomains will be populated here -->
+        </div>
+    </div>
+
+    <!-- Security Analysis Section -->
+    <div class="security-section" id="security-section" style="display: none;">
+        <h4><i class="fas fa-shield-alt"></i> Security Assessment</h4>
+        <div class="security-features" id="security-features">
+            <!-- Security features will be populated here -->
+        </div>
+    </div>
+
+    <!-- WHOIS Information Section -->
+    <div class="whois-section" id="whois-section" style="display: none;">
+        <h4><i class="fas fa-info-circle"></i> WHOIS Information</h4>
+        <div class="whois-container" id="whois-container">
+            <!-- WHOIS data will be populated here -->
+        </div>
+    </div>
+</div>
+
+<!-- Info Panels Section -->
+<div class="info-panels animate-fade-up" style="animation-delay: 0.4s;" id="examples">
+    <div class="examples-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-lightbulb"></i> 
+                DNS Examples
+            </h4>
+        </div>
+        <div class="examples-content">
+            <div class="example-carousel">
+                <div class="example-slide active">
+                    <div class="example-icon">
+                        <i class="sana-s-logo"></i>
+                    </div>
+                    <h5>Domain Analysis</h5>
+                    <p>Analyze any domain for comprehensive DNS information and security posture</p>
+                    <code>google.com</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-sitemap"></i>
+                    </div>
+                    <h5>Subdomain Discovery</h5>
+                    <p>Enumerate subdomains to map the complete domain infrastructure</p>
+                    <code>*.example.com</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h5>Security Assessment</h5>
+                    <p>Check DNSSEC, SPF, DMARC and other security configurations</p>
+                    <code>Security Analysis</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h5>Reverse DNS</h5>
+                    <p>Perform reverse DNS lookups to find hostnames from IP addresses</p>
+                    <code>8.8.8.8</code>
+                </div>
+            </div>
+            <div class="example-navigation">
+                <button class="example-nav prev" data-tooltip="Previous example">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="example-dots">
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <button class="example-nav next" data-tooltip="Next example">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="reference-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-book"></i> 
+                Quick Reference
+            </h4>
+        </div>
+        <div class="reference-content">
+            <div class="reference-section">
+                <h5>DNS Record Types</h5>
+                <ul>
+                    <li>
+                        <span>A Record</span>
+                        <code>IPv4</code>
+                    </li>
+                    <li>
+                        <span>AAAA Record</span>
+                        <code>IPv6</code>
+                    </li>
+                    <li>
+                        <span>MX Record</span>
+                        <code>Mail</code>
+                    </li>
+                    <li>
+                        <span>NS Record</span>
+                        <code>Name Server</code>
+                    </li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Domain Formats</h5>
+                <ul>
+                    <li>
+                        <span>Standard Domain</span>
+                        <code>example.com</code>
+                    </li>
+                    <li>
+                        <span>Subdomain</span>
+                        <code>www.example.com</code>
+                    </li>
+                    <li>
+                        <span>International</span>
+                        <code>münchen.de</code>
+                    </li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Security Features</h5>
+                <ul>
+                    <li>
+                        <span>DNSSEC</span>
+                        <code>Secure</code>
+                    </li>
+                    <li>
+                        <span>SPF Record</span>
+                        <code>Email</code>
+                    </li>
+                    <li>
+                        <span>DMARC</span>
+                        <code>Policy</code>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Tips Section -->
+<div class="advanced-tips-section animate-fade-up" style="animation-delay: 1.0s;">
+    <div class="tips-container">
+        <h3>
+            <i class="fas fa-graduation-cap"></i> 
+            DNS Reconnaissance Best Practices
+        </h3>
+        <div class="tips-grid">
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <h5>Domain Intelligence</h5>
+                <p>Start with basic DNS records before moving to advanced enumeration techniques.</p>
+            </div>
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h5>Security Analysis</h5>
+                <p>Always check DNSSEC, SPF, and DMARC records for comprehensive security assessment.</p>
+            </div>
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                <h5>Subdomain Discovery</h5>
+                <p>Use subdomain enumeration to map the complete attack surface of a domain.</p>
+            </div>
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-gavel"></i>
+                </div>
+                <h5>Legal Considerations</h5>
+                <p>Only perform DNS reconnaissance on domains you own or have explicit permission to analyze.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Notice -->
+<div class="security-notice animate-fade-up" style="animation-delay: 1.2s;">
+    <div class="notice-content">
+        <div class="notice-icon">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        <div class="notice-text">
+            <h4>Responsible DNS Reconnaissance</h4>
+            <p>DNS analysis should only be performed on domains you own or have explicit permission to analyze. SANA Toolkit is designed for legitimate security assessment and educational purposes.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Help Button -->
+<div class="floating-help">
+    <button class="help-btn" id="floating-help">
+        <i class="fas fa-question"></i>
+    </button>
+    <div class="help-tooltip">
+        <p>Need help? Click for DNS analysis tutorials and documentation.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dns-recon.js') }}"></script>
+{% endblock %}

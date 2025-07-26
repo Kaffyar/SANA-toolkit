@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+
+{% block title %}Network Scanner - SANA Toolkit{% endblock %}
+
+{% block page_icon %}<i class="fas fa-search-plus"></i>{% endblock %}
+{% block page_title %}Advanced Network Scanner{% endblock %}
+{% block page_subtitle %}Professional Port Scanning & Service Detection with AI-Powered Analysis{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nmap-scanner.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Advanced Hero Section with Real-time Stats -->
+<div class="hero-scanner-section">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1 class="hero-title gradient-text">Advanced Network Security Scanner</h1>
+            <p class="hero-subtitle">Discover vulnerabilities, map network topology, and analyze service fingerprints with military-grade precision</p>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-bubble">
+                <div class="stat-value" id="total-scans">1,247</div>
+                <div class="stat-label">Total Scans</div>
+            </div>
+            <div class="stat-bubble">
+                <div class="stat-value" id="hosts-discovered">5,834</div>
+                <div class="stat-label">Hosts Found</div>
+            </div>
+            <div class="stat-bubble">
+                <div class="stat-value" id="vulnerabilities-found">127</div>
+                <div class="stat-label">Vulnerabilities</div>
+            </div>
+        </div>
+        <div class="hero-actions">
+            <button type="button" class="btn btn-hero-primary" id="focus-scan-btn">
+                <i class="fas fa-rocket"></i>
+                Launch Scanner
+            </button>
+            <button class="btn btn-hero-secondary" id="local-scan-btn">
+                <i class="fas fa-network-wired"></i>
+                Quick Local Scan
+            </button>
+            <a href="{{ url_for('scan_history.scan_history') }}" class="btn btn-hero-outline">
+                <i class="fas fa-history"></i>
+                View History
+            </a>
+        </div>
+    </div>
+    <div class="scanning-radar">
+        <div class="radar-circle"></div>
+        <div class="radar-sweep"></div>
+        <div class="radar-dots">
+            <div class="radar-dot" style="top: 20%; left: 30%;"></div>
+            <div class="radar-dot" style="top: 60%; left: 70%;"></div>
+            <div class="radar-dot" style="top: 80%; left: 20%;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Scan Configuration Panel -->
+<div class="scan-config-panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <i class="fas fa-cogs"></i>
+            <h3>Scan Configuration</h3>
+        </div>
+        <div class="scan-progress-info">
+            <div class="progress-item">
+                <i class="fas fa-clock"></i>
+                <span id="scan-time">0:00</span>
+            </div>
+            <div class="progress-item">
+                <i class="fas fa-server"></i>
+                <span id="hosts-found">0 Hosts</span>
+            </div>
+            <div class="progress-item">
+                <i class="fas fa-door-open"></i>
+                <span id="ports-found">0 Ports</span>
+            </div>
+            <div class="progress-item">
+                <i class="fas fa-shield-alt"></i>
+                <span id="scan-status-text">Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <form id="scan-form" class="enhanced-form">
+        <!-- Target Configuration -->
+        <div class="form-section">
+            <div class="section-header">
+                <i class="fas fa-crosshairs"></i>
+                <h4>Target Configuration</h4>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group flex-2">
+                    <label for="target" class="form-label">
+                        <i class="fas fa-bullseye"></i>
+                        Target IP/Hostname/Range
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" id="target" class="form-control enhanced-input" 
+                               placeholder="192.168.1.1, scanme.nmap.org, 10.0.0.1-254" required>
+                        <div class="input-validation"></div>
+                    </div>
+                    <div class="input-suggestions" id="target-suggestions"></div>
+                </div>
+                
+                <div class="form-group flex-1">
+                    <label for="target-type" class="form-label">
+                        <i class="fas fa-tags"></i>
+                        Target Type
+                    </label>
+                    <select id="target-type" class="form-control enhanced-select">
+                        <option value="single">Single Host</option>
+                        <option value="range">IP Range</option>
+                        <option value="subnet">Subnet (CIDR)</option>
+                        <option value="list">Host List</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan Type Configuration -->
+        <div class="form-section">
+            <div class="section-header">
+                <i class="fas fa-shield-alt"></i>
+                <h4>Scan Profile</h4>
+            </div>
+            
+            <div class="scan-profiles">
+                <div class="profile-option" data-profile="stealth">
+                    <div class="profile-icon"><i class="fas fa-user-secret"></i></div>
+                    <div class="profile-info">
+                        <h5>Stealth Scan</h5>
+                        <p>Low detection, slow speed</p>
+                    </div>
+                    <div class="profile-stats">
+                        <span class="stat">Speed: <strong>★☆☆</strong></span>
+                        <span class="stat">Stealth: <strong>★★★</strong></span>
+                    </div>
+                </div>
+                
+                <div class="profile-option active" data-profile="balanced">
+                    <div class="profile-icon"><i class="fas fa-balance-scale"></i></div>
+                    <div class="profile-info">
+                        <h5>Balanced Scan</h5>
+                        <p>Optimal speed and detection</p>
+                    </div>
+                    <div class="profile-stats">
+                        <span class="stat">Speed: <strong>★★☆</strong></span>
+                        <span class="stat">Stealth: <strong>★★☆</strong></span>
+                    </div>
+                </div>
+                
+                <div class="profile-option" data-profile="aggressive">
+                    <div class="profile-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="profile-info">
+                        <h5>Aggressive Scan</h5>
+                        <p>Maximum speed, high detection</p>
+                    </div>
+                    <div class="profile-stats">
+                        <span class="stat">Speed: <strong>★★★</strong></span>
+                        <span class="stat">Stealth: <strong>★☆☆</strong></span>
+                    </div>
+                </div>
+                
+                <div class="profile-option" data-profile="comprehensive">
+                    <div class="profile-icon"><i class="fas fa-search-plus"></i></div>
+                    <div class="profile-info">
+                        <h5>Deep Analysis</h5>
+                        <p>Full service & OS detection</p>
+                    </div>
+                    <div class="profile-stats">
+                        <span class="stat">Depth: <strong>★★★</strong></span>
+                        <span class="stat">Time: <strong>Long</strong></span>
+                    </div>
+                </div>
+                
+                <div class="profile-option" data-profile="custom">
+                    <div class="profile-icon"><i class="fas fa-code"></i></div>
+                    <div class="profile-info">
+                        <h5>Custom Args</h5>
+                        <p>Manual configuration</p>
+                    </div>
+                    <div class="profile-stats">
+                        <span class="stat">Control: <strong>★★★</strong></span>
+                        <span class="stat">Expert: <strong>Required</strong></span>
+                    </div>
+                </div>
+            </div>
+            
+            <input type="hidden" id="scan-type" value="balanced">
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="form-section">
+            <div class="section-header collapsible" data-target="advanced-options">
+                <i class="fas fa-sliders-h"></i>
+                <h4>Advanced Options</h4>
+                <i class="fas fa-chevron-down toggle-icon"></i>
+            </div>
+            
+            <div id="advanced-options" class="collapsible-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="port-range" class="form-label">
+                            <i class="fas fa-plug"></i>
+                            Port Range
+                        </label>
+                        <div class="port-presets">
+                            <button type="button" class="preset-btn" data-ports="1-1000">Top 1000</button>
+                            <button type="button" class="preset-btn" data-ports="1-65535">All Ports</button>
+                            <button type="button" class="preset-btn" data-ports="22,80,443,3389,5432,3306">Common</button>
+                            <button type="button" class="preset-btn" data-ports="80,443,8080,8443,9000,9443">Web</button>
+                        </div>
+                        <input type="text" id="port-range" class="form-control" placeholder="e.g., 1-1000, 22,80,443">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="timing-template" class="form-label">
+                            <i class="fas fa-tachometer-alt"></i>
+                            Timing Template
+                        </label>
+                        <div class="timing-slider">
+                            <input type="range" id="timing-slider" min="0" max="5" value="3" class="slider">
+                            <div class="timing-labels">
+                                <span>T0</span><span>T1</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span>
+                            </div>
+                        </div>
+                        <select id="timing-template" class="form-control" style="display: none;">
+                            <option value="T0">T0 - Paranoid</option>
+                            <option value="T1">T1 - Sneaky</option>
+                            <option value="T2">T2 - Polite</option>
+                            <option value="T3" selected>T3 - Normal</option>
+                            <option value="T4">T4 - Aggressive</option>
+                            <option value="T5">T5 - Insane</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-cog"></i>
+                            Scan Options
+                        </label>
+                        <div class="option-toggles">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="service-detection" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Service Detection (-sV)</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="os-detection">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">OS Detection (-O)</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="script-scan">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Script Scan (-sC)</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="aggressive-timing">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Aggressive (-A)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" id="custom-args-group" style="display: none;">
+                    <label for="custom-args" class="form-label">
+                        <i class="fas fa-terminal"></i>
+                        Custom Nmap Arguments
+                    </label>
+                    <textarea id="custom-args" class="form-control code-input" rows="3" 
+                              placeholder="Enter custom Nmap arguments (e.g., -sS -sV -p 1-1000 --script vuln)"></textarea>
+                    <div class="command-preview">
+                        <strong>Command Preview:</strong> <code id="command-preview-text">nmap</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Launch Section -->
+        <div class="launch-section">
+            <button type="submit" class="btn btn-scan-launch" id="scan-btn">
+                <div class="btn-content">
+                    <i class="fas fa-rocket launch-icon"></i>
+                    <span class="btn-text">Launch Network Scan</span>
+                </div>
+                <div class="btn-effects">
+                    <div class="ripple"></div>
+                    <div class="glow"></div>
+                </div>
+            </button>
+            <div class="launch-info">
+                <p>Estimated scan time: <span id="estimated-time">2-5 minutes</span></p>
+                <p>Target validation: <span id="target-validation" class="status-pending">Pending</span></p>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Enhanced Scan Status with Real-time Progress -->
+<div id="scan-status" class="scan-status-panel" style="display: none;">
+    <div class="status-header">
+        <h3><i class="fas fa-satellite-dish"></i> Scan in Progress</h3>
+        <button class="btn btn-outline btn-sm" id="cancel-scan">
+            <i class="fas fa-stop"></i> Cancel
+        </button>
+    </div>
+    
+    <div class="scan-visualization">
+        <div class="scan-radar">
+            <div class="radar-background"></div>
+            <div class="radar-sweep-line"></div>
+            <div class="scan-targets" id="scan-targets"></div>
+        </div>
+        
+        <div class="scan-details">
+            <div class="scan-phase">
+                <h4>Current Phase:</h4>
+                <p id="current-phase">Host Discovery</p>
+            </div>
+            <div class="scan-stats-live">
+                <div class="live-stat">
+                    <span class="stat-label">Hosts Found:</span>
+                    <span class="stat-value" id="live-hosts">0</span>
+                </div>
+                <div class="live-stat">
+                    <span class="stat-label">Ports Scanned:</span>
+                    <span class="stat-value" id="live-ports">0</span>
+                </div>
+                <div class="live-stat">
+                    <span class="stat-label">Open Ports:</span>
+                    <span class="stat-value" id="live-open-ports">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="progress-section">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="scan-progress">
+                <div class="progress-fill"></div>
+                <div class="progress-text">0%</div>
+            </div>
+        </div>
+        <div class="scan-log">
+            <div class="log-header">
+                <h5>Scan Log</h5>
+                <button class="btn btn-xs" id="clear-log">Clear</button>
+            </div>
+            <div class="log-content" id="scan-log">
+                <div class="log-entry">
+                    <span class="timestamp">[00:00:01]</span>
+                    <span class="message">Initializing scan engine...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Results Section with Advanced Filtering -->
+<div id="results-section" class="results-panel" style="display: none;">
+    <div class="results-header">
+        <div class="results-title">
+            <h3><i class="fas fa-chart-network"></i> Scan Results</h3>
+            <div class="scan-summary">
+                <span class="summary-item">
+                    <i class="fas fa-server"></i>
+                    <strong id="total-hosts">0</strong> Hosts
+                </span>
+                <span class="summary-item">
+                    <i class="fas fa-door-open"></i>
+                    <strong id="total-open-ports">0</strong> Open Ports
+                </span>
+                <span class="summary-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong id="total-vulnerabilities">0</strong> Potential Issues
+                </span>
+            </div>
+        </div>
+        
+        <div class="results-actions">
+            <div class="view-options">
+                <button class="view-btn active" data-view="detailed">
+                    <i class="fas fa-list"></i> Detailed
+                </button>
+                <button class="view-btn" data-view="topology">
+                    <i class="fas fa-project-diagram"></i> Topology
+                </button>
+                <button class="view-btn" data-view="vulnerabilities">
+                    <i class="fas fa-bug"></i> Security
+                </button>
+            </div>
+            
+            <div class="export-options">
+                <div class="dropdown">
+                    <button class="btn btn-outline dropdown-toggle">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <div class="dropdown-menu">
+                        <button id="export-json" class="dropdown-item">
+                            <i class="fas fa-file-code"></i> JSON Report
+                        </button>
+                        <button id="export-csv" class="dropdown-item">
+                            <i class="fas fa-file-csv"></i> CSV Data
+                        </button>
+                        <button id="export-pdf" class="dropdown-item">
+                            <i class="fas fa-file-pdf"></i> PDF Report
+                        </button>
+                        <button id="copy-results" class="dropdown-item">
+                            <i class="fas fa-copy"></i> Copy to Clipboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="results-filters">
+        <div class="filter-group">
+            <label>Filter by Port State:</label>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="open">Open</button>
+                <button class="filter-btn" data-filter="closed">Closed</button>
+                <button class="filter-btn" data-filter="filtered">Filtered</button>
+            </div>
+        </div>
+        
+        <div class="filter-group">
+            <label>Service Type:</label>
+            <select class="filter-select" id="service-filter">
+                <option value="">All Services</option>
+                <option value="http">HTTP/HTTPS</option>
+                <option value="ssh">SSH</option>
+                <option value="ftp">FTP</option>
+                <option value="smtp">Email</option>
+                <option value="database">Database</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <input type="text" class="filter-search" placeholder="Search hosts, ports, services..." id="results-search">
+        </div>
+    </div>
+
+    <!-- Command Display -->
+    <div class="command-section" id="command-display">
+        <div class="command-header">
+            <h4><i class="fas fa-terminal"></i> Command Executed</h4>
+            <button class="btn btn-xs" id="copy-command">
+                <i class="fas fa-copy"></i> Copy
+            </button>
+        </div>
+        <pre class="command-text" id="command-text"></pre>
+    </div>
+
+    <!-- Results Content -->
+    <div class="results-content">
+        <div id="detailed-view" class="results-view active">
+            <div id="hosts-container">
+                <!-- Dynamic host results will be inserted here -->
+            </div>
+        </div>
+        
+        <div id="topology-view" class="results-view">
+            <div class="topology-container">
+                <div id="network-topology"></div>
+            </div>
+        </div>
+        
+        <div id="vulnerabilities-view" class="results-view">
+            <div class="vulnerabilities-container">
+                <div id="security-analysis"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="results-footer">
+        <button class="btn btn-primary" id="new-scan-btn">
+            <i class="fas fa-redo"></i> New Scan
+        </button>
+        <button class="btn btn-secondary" id="save-scan-btn">
+            <i class="fas fa-save"></i> Save Results
+        </button>
+        <button class="btn btn-outline" id="share-scan-btn">
+            <i class="fas fa-share"></i> Share
+        </button>
+    </div>
+</div>
+
+<!-- Enhanced Tips and Documentation -->
+<div class="info-panels">
+    <div class="tips-panel">
+        <div class="panel-header">
+            <h4><i class="fas fa-lightbulb"></i> Pro Tips</h4>
+        </div>
+        <div class="tips-content">
+            <div class="tip-carousel">
+                <div class="tip-slide active">
+                    <div class="tip-icon"><i class="fas fa-user-secret"></i></div>
+                    <h5>Stealth Scanning</h5>
+                    <p>Use stealth mode for reconnaissance without triggering security systems. Perfect for penetration testing.</p>
+                </div>
+                <div class="tip-slide">
+                    <div class="tip-icon"><i class="fas fa-clock"></i></div>
+                    <h5>Timing Templates</h5>
+                    <p>T3 is optimal for most networks. Use T2 for sensitive targets, T4+ for internal networks only.</p>
+                </div>
+                <div class="tip-slide">
+                    <div class="tip-icon"><i class="fas fa-shield-alt"></i></div>
+                    <h5>Legal Considerations</h5>
+                    <p>Only scan networks you own or have explicit permission to test. Unauthorized scanning is illegal.</p>
+                </div>
+            </div>
+            <div class="tip-navigation">
+                <button class="tip-nav prev"><i class="fas fa-chevron-left"></i></button>
+                <div class="tip-dots">
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <button class="tip-nav next"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="reference-panel">
+        <div class="panel-header">
+            <h4><i class="fas fa-book"></i> Quick Reference</h4>
+        </div>
+        <div class="reference-content">
+            <div class="reference-section">
+                <h5>Common Port Ranges</h5>
+                <ul>
+                    <li><code>1-1000</code> - Most common ports</li>
+                    <li><code>1-65535</code> - All possible ports</li>
+                    <li><code>22,80,443</code> - Specific ports</li>
+                    <li><code>8000-9000</code> - Port range</li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Target Formats</h5>
+                <ul>
+                    <li><code>192.168.1.1</code> - Single IP</li>
+                    <li><code>192.168.1.1-254</code> - IP range</li>
+                    <li><code>192.168.1.0/24</code> - CIDR notation</li>
+                    <li><code>example.com</code> - Domain name</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Help Button -->
+<div class="floating-help">
+    <button class="help-btn" id="floating-help">
+        <i class="fas fa-question"></i>
+    </button>
+    <div class="help-tooltip">
+        <p>Need help? Click for scanning tutorials and documentation.</p>
+    </div>
+</div>
+
+<!-- Auth-Style Notification System -->
+<div id="notification-container" class="notification-container" role="region" aria-label="Notifications" aria-live="polite"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/nmap-scanner.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}Scan History - SANA Toolkit{% endblock %}
+
+{% block page_icon %}<i class="fas fa-history"></i>{% endblock %}
+{% block page_title %}Scan History{% endblock %}
+{% block page_subtitle %}Comprehensive analysis of your security assessment history{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scan-history.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Statistics -->
+<div class="history-hero-section animate-fade-up">
+    <div class="hero-stats-grid">
+        <div class="stat-card total-scans">
+            <div class="stat-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="total-scans-count">--</h3>
+                <p>Total Scans</p>
+                <span class="stat-change positive" id="total-scans-change">+12%</span>
+            </div>
+        </div>
+        
+        <div class="stat-card threats-found">
+            <div class="stat-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="threats-found-count">--</h3>
+                <p>Threats Detected</p>
+                <span class="stat-change negative" id="threats-change">+3 this week</span>
+            </div>
+        </div>
+        
+        <div class="stat-card hosts-discovered">
+            <div class="stat-icon">
+                <i class="fas fa-server"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="hosts-discovered-count">--</h3>
+                <p>Hosts Discovered</p>
+                <span class="stat-change neutral" id="hosts-change">Same as last week</span>
+            </div>
+        </div>
+        
+        <div class="stat-card scan-duration">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="avg-duration">--</h3>
+                <p>Avg Scan Time</p>
+                <span class="stat-change positive" id="duration-change">-15%</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analytics Section with Charts -->
+<section class="analytics-section" id="analytics-section">
+    <div class="analytics-header">
+        <h2><i class="fas fa-chart-pie"></i> Scan Analytics</h2>
+        <button id="refresh-analytics" class="refresh-btn">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+    
+    <div class="analytics-grid">
+        <div class="chart-card">
+            <div id="threat-chart"></div>
+        </div>
+        
+        <div class="chart-card">
+            <div id="scan-type-chart"></div>
+        </div>
+        
+        <div class="chart-card">
+            <div id="activity-chart"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Advanced Filters & Search -->
+<div class="filters-section animate-fade-up" style="animation-delay: 0.2s;">
+    <div class="filters-header">
+        <h3><i class="fas fa-filter"></i> Filter & Search</h3>
+        <div class="quick-actions">
+            <button class="btn btn-outline btn-sm" id="export-history">
+                <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-outline btn-sm" id="clear-filters">
+                <i class="fas fa-times"></i> Clear Filters
+            </button>
+        </div>
+    </div>
+    
+    <div class="filters-grid">
+        <!-- Search Input -->
+        <div class="filter-group search-group">
+            <label>Search Scans</label>
+            <div class="search-input-wrapper">
+                <input type="text" id="search-input" placeholder="Search targets, results, notes..." autocomplete="off">
+                <i class="fas fa-search search-icon"></i>
+            </div>
+        </div>
+        
+        <!-- Scan Type Filter -->
+        <div class="filter-group">
+            <label>Scan Type</label>
+            <select id="scan-type-filter" class="enhanced-select">
+                <option value="">All Types</option>
+                <option value="network">Network Scan</option>
+                <option value="virustotal">VirusTotal</option>
+                <option value="dns">DNS Reconnaissance</option>
+                <option value="host_discovery">Host Discovery</option>
+            </select>
+        </div>
+        
+        <!-- Threat Level Filter -->
+        <div class="filter-group">
+            <label>Threat Level</label>
+            <select id="threat-level-filter" class="enhanced-select">
+                <option value="">All Levels</option>
+                <option value="low">Low Risk</option>
+                <option value="medium">Medium Risk</option>
+                <option value="high">High Risk</option>
+                <option value="critical">Critical</option>
+            </select>
+        </div>
+        
+        <!-- Date Range Filter -->
+        <div class="filter-group">
+            <label>Date Range</label>
+            <select id="date-range-filter" class="enhanced-select">
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="quarter">Last 3 Months</option>
+                <option value="year">This Year</option>
+                <option value="custom">Custom Range</option>
+            </select>
+        </div>
+        
+        <!-- Status Filter -->
+        <div class="filter-group">
+            <label>Status</label>
+            <select id="status-filter" class="enhanced-select">
+                <option value="">All Status</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+                <option value="in_progress">In Progress</option>
+            </select>
+        </div>
+    </div>
+    
+    <!-- Custom Date Range (Hidden by default) -->
+    <div class="custom-date-range" id="custom-date-range" style="display: none;">
+        <div class="date-inputs">
+            <div class="date-group">
+                <label>From Date</label>
+                <input type="date" id="date-from" class="enhanced-input">
+            </div>
+            <div class="date-group">
+                <label>To Date</label>
+                <input type="date" id="date-to" class="enhanced-input">
+            </div>
+            <button class="btn btn-primary btn-sm" id="apply-date-range">
+                <i class="fas fa-check"></i> Apply
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Scan History Table -->
+<div class="history-table-section animate-fade-up" style="animation-delay: 0.4s;">
+    <div class="table-header">
+        <h3><i class="fas fa-table"></i> Scan Results</h3>
+        <div class="table-actions">
+            <div class="results-count">
+                <span id="results-count">Loading...</span>
+            </div>
+            <div class="view-options">
+                <button class="view-btn active" data-view="table" title="Table View">
+                    <i class="fas fa-table"></i>
+                </button>
+                <button class="view-btn" data-view="grid" title="Grid View">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button class="view-btn" data-view="timeline" title="Timeline View">
+                    <i class="fas fa-chart-line"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading State -->
+    <div class="loading-state" id="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading scan history...</p>
+    </div>
+    
+    <!-- Table View -->
+    <div class="table-container" id="table-view">
+        <div class="history-table-wrapper">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">
+                            <div class="selection-cell">
+                                <input type="checkbox" id="select-all-scans" title="Select All">
+                            </div>
+                        </th>
+                        <th class="sortable" data-sort="timestamp">
+                            <i class="fas fa-calendar"></i> Date
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="scan_type">
+                            <i class="fas fa-tag"></i> Type
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="target">
+                            <i class="fas fa-bullseye"></i> Target
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="duration">
+                            <i class="fas fa-clock"></i> Duration
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="threats">
+                            <i class="fas fa-shield-alt"></i> Threats
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th class="sortable" data-sort="threat_level">
+                            <i class="fas fa-exclamation-triangle"></i> Risk
+                            <span class="sort-indicator"></span>
+                        </th>
+                        <th>
+                            <i class="fas fa-cog"></i> Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="history-table-body">
+                    <!-- Dynamic content will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Grid View -->
+    <div class="grid-container" id="grid-view" style="display: none;">
+        <div class="scan-grid" id="scan-grid">
+            <!-- Dynamic grid cards will be loaded here -->
+        </div>
+    </div>
+    
+    <!-- Timeline View -->
+    <div class="timeline-container" id="timeline-view" style="display: none;">
+        <div class="timeline-chart" id="timeline-chart">
+            <!-- Timeline visualization will be rendered here -->
+        </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div class="empty-state" id="empty-state" style="display: none;">
+        <div class="empty-icon">
+            <i class="fas fa-search"></i>
+        </div>
+        <h3>No Scan History Found</h3>
+        <p>Start by running your first security scan to see results here.</p>
+        <div class="empty-actions">
+            <a href="{{ url_for('virustotal.virustotal_page') }}" class="btn btn-primary">
+                <i class="fas fa-shield-virus"></i> Run VirusTotal Scan
+            </a>
+            <a href="{{ url_for('dns_recon.dns_recon_page') }}" class="btn btn-secondary">
+                <i class="fas fa-globe"></i> DNS Reconnaissance
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination-section" id="pagination-section">
+    <div class="pagination-info">
+        <span id="pagination-info">Showing 1-20 of 156 results</span>
+    </div>
+    <div class="pagination-controls">
+        <button class="btn btn-outline btn-sm" id="prev-page" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+        </button>
+        <div class="page-numbers" id="page-numbers">
+            <!-- Dynamic page numbers -->
+        </div>
+        <button class="btn btn-outline btn-sm" id="next-page">
+            Next <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Selection Bar for Comparison (Hidden by default) -->
+<div class="selection-bar" id="selection-bar">
+    <div class="selection-bar-content">
+        <div class="selection-count">
+            <i class="fas fa-check-square"></i>
+            <span id="selection-count">0 scans selected</span>
+        </div>
+        <div class="selection-actions">
+            <button class="btn btn-outline btn-sm" id="clear-selection">
+                <i class="fas fa-times"></i> Clear
+            </button>
+            <button class="btn btn-primary btn-sm" id="compare-scans">
+                <i class="fas fa-exchange-alt"></i> Compare
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Scan Detail Modal -->
+<div class="modal" id="scan-detail-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Scan Details</h3>
+            <button class="modal-close" id="modal-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <!-- Dynamic scan details will be loaded here -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="modal-export">
+                <i class="fas fa-download"></i> Export Results
+            </button>
+            <button class="btn btn-secondary" id="modal-close-btn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Auth-Style Notification System -->
+<div id="notification-container" class="notification-container" role="region" aria-label="Notifications" aria-live="polite"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scan-history.js') }}"></script>
+{% endblock %}

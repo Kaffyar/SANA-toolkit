@@ -1,0 +1,474 @@
+{% extends "auth/auth_base.html" %}
+
+{% block title %}SANA Toolkit - Verify Code{% endblock %}
+
+{% block auth_content %}
+<div class="auth-form-wrapper">
+    <!-- Form Header -->
+    <div class="form-header">
+        <div class="form-title">
+            <h2>
+                <i class="fas fa-shield-check"></i>
+                {% if otp_type == 'signup' %}
+                Complete Registration
+                {% else %}
+                Verify Your Identity
+                {% endif %}
+            </h2>
+            <p class="form-subtitle">
+                We sent a 6-digit verification code to<br>
+                <strong class="email-display">{{ email }}</strong>
+            </p>
+        </div>
+        
+        <div class="verification-timer">
+            <i class="fas fa-clock"></i>
+            <span id="timer-text">Code expires in <strong id="timer-minutes">10</strong>:<strong id="timer-seconds">00</strong></span>
+        </div>
+    </div>
+
+    <!-- OTP Verification Form -->
+    <form id="otp-form" class="auth-form" novalidate>
+        <!-- OTP Input -->
+        <div class="form-group">
+            <label for="otp-input" class="form-label">
+                <i class="fas fa-key"></i>
+                Verification Code
+            </label>
+            <div class="otp-input-container">
+                <input type="text" 
+                       id="otp-input" 
+                       class="otp-input" 
+                       maxlength="6" 
+                       placeholder="000000"
+                       autocomplete="one-time-code"
+                       inputmode="numeric"
+                       pattern="[0-9]*"
+                       required>
+                <div class="otp-visual">
+                    <div class="otp-digit" data-index="0"></div>
+                    <div class="otp-digit" data-index="1"></div>
+                    <div class="otp-digit" data-index="2"></div>
+                    <div class="otp-digit" data-index="3"></div>
+                    <div class="otp-digit" data-index="4"></div>
+                    <div class="otp-digit" data-index="5"></div>
+                </div>
+            </div>
+            <div class="input-feedback" id="otp-feedback"></div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-auth" id="verify-btn">
+                <span class="btn-text">
+                    <i class="fas fa-check-circle"></i>
+                    {% if otp_type == 'signup' %}
+                    Complete Registration
+                    {% else %}
+                    Verify & Sign In
+                    {% endif %}
+                </span>
+                <span class="btn-loading" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Verifying...
+                </span>
+            </button>
+        </div>
+    </form>
+
+    <!-- Resend Section -->
+    <div class="resend-section">
+        <div class="resend-info">
+            <p>Didn't receive the code?</p>
+        </div>
+        <button type="button" class="btn btn-outline btn-auth" id="resend-btn" disabled>
+            <span class="btn-text">
+                <i class="fas fa-paper-plane"></i>
+                Resend Code
+            </span>
+            <span class="btn-loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+                Sending...
+            </span>
+            <span class="btn-countdown" style="display: none;">
+                <i class="fas fa-clock"></i>
+                Resend in <span id="resend-countdown">60</span>s
+            </span>
+        </button>
+    </div>
+
+    <!-- Help Section -->
+    <div class="verification-help">
+        <details class="help-details">
+            <summary class="help-summary">
+                <i class="fas fa-question-circle"></i>
+                Verification Help
+            </summary>
+            <div class="help-content">
+                <div class="help-item">
+                    <h5><i class="fas fa-envelope"></i> Check Your Email</h5>
+                    <p>Look for an email from <strong>SANA Toolkit</strong> with subject "Your Security Code"</p>
+                </div>
+                <div class="help-item">
+                    <h5><i class="fas fa-folder"></i> Check Spam Folder</h5>
+                    <p>The verification email might be in your spam or promotions folder</p>
+                </div>
+                <div class="help-item">
+                    <h5><i class="fas fa-clock"></i> Code Timing</h5>
+                    <p>Codes expire after 10 minutes. Use the "Resend Code" button if needed</p>
+                </div>
+                {% if otp_type == 'signup' %}
+                <div class="help-item">
+                    <h5><i class="fas fa-key"></i> Password Security</h5>
+                    <p>Choose a strong, unique password that you haven't used elsewhere</p>
+                </div>
+                {% endif %}
+                <div class="help-item">
+                    <h5><i class="fas fa-headset"></i> Still Need Help?</h5>
+                    <p>Contact support at <a href="mailto:support@sanatoolkit.com">support@sanatoolkit.com</a></p>
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <!-- Back Link -->
+    <div class="auth-alternative">
+        <a href="{% if otp_type == 'signup' %}{{ url_for('auth.signup') }}{% else %}{{ url_for('auth.login') }}{% endif %}" 
+           class="back-link">
+            <i class="fas fa-arrow-left"></i>
+            {% if otp_type == 'signup' %}
+            Back to Sign Up
+            {% else %}
+            Back to Login
+            {% endif %}
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// PREVENT DUPLICATE REQUESTS - Add this at the very top
+let isSubmitting = false;
+let hasSubmitted = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Add this to see what's happening
+    console.log('Current session data:', document.cookie);
+    
+    // Disable auth.js for this page to prevent conflicts
+    if (window.SANAAuth) {
+        window.SANAAuth.state.isSubmitting = true; // Block auth.js
+    }
+    
+    const form = document.getElementById('otp-form');
+    const otpInput = document.getElementById('otp-input');
+    const verifyBtn = document.getElementById('verify-btn');
+    const resendBtn = document.getElementById('resend-btn');
+    const otpFeedback = document.getElementById('otp-feedback');
+    const otpType = '{{ otp_type }}';
+    
+    // Timer elements
+    let timeLeft = 600; // 10 minutes in seconds
+    const timerMinutes = document.getElementById('timer-minutes');
+    const timerSeconds = document.getElementById('timer-seconds');
+    
+    // Resend countdown
+    let resendTimeLeft = 60; // 60 seconds
+    const resendCountdown = document.getElementById('resend-countdown');
+
+    // OTP Visual Display
+    function updateOtpVisual(value) {
+        const digits = document.querySelectorAll('.otp-digit');
+        digits.forEach((digit, index) => {
+            if (index < value.length) {
+                digit.textContent = value[index];
+                digit.classList.add('filled');
+            } else {
+                digit.textContent = '';
+                digit.classList.remove('filled');
+            }
+        });
+    }
+
+    // OTP Input Handling - DISABLED AUTO-SUBMIT
+    otpInput.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, ''); // Remove non-digits
+        if (value.length > 6) value = value.slice(0, 6);
+        this.value = value;
+        updateOtpVisual(value);
+        
+        // Clear previous feedback
+        showFeedback(otpFeedback, '');
+        
+        // DISABLED: No auto-submit to prevent duplicate requests
+        // User must manually click submit button
+    });
+
+    // OTP Input Focus Management
+    otpInput.addEventListener('keydown', function(e) {
+        // Allow backspace, delete, tab, escape, enter
+        if ([8, 9, 27, 13, 46].includes(e.keyCode) ||
+            // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            (e.keyCode === 65 && e.ctrlKey) ||
+            (e.keyCode === 67 && e.ctrlKey) ||
+            (e.keyCode === 86 && e.ctrlKey) ||
+            (e.keyCode === 88 && e.ctrlKey)) {
+            return;
+        }
+        // Ensure that it is a number and stop the keypress
+        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+            e.preventDefault();
+        }
+    });
+
+    function showFeedback(element, message, type = 'error') {
+        if (!element) return;
+        element.textContent = message;
+        element.className = `input-feedback ${type}`;
+        element.style.display = message ? 'block' : 'none';
+    }
+
+    // Timer functionality
+    function updateTimer() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerMinutes.textContent = minutes;
+        timerSeconds.textContent = seconds.toString().padStart(2, '0');
+        
+        if (timeLeft <= 0) {
+            showFeedback(otpFeedback, 'Verification code has expired. Please request a new one.', 'error');
+            verifyBtn.disabled = true;
+        }
+        
+        timeLeft--;
+    }
+
+    function updateResendCountdown() {
+        resendCountdown.textContent = resendTimeLeft;
+        
+        if (resendTimeLeft <= 0) {
+            resendBtn.disabled = false;
+            resendBtn.querySelector('.btn-text').style.display = 'flex';
+            resendBtn.querySelector('.btn-countdown').style.display = 'none';
+        }
+        
+        resendTimeLeft--;
+    }
+
+    // Start timers
+    const timerInterval = setInterval(updateTimer, 1000);
+    const resendInterval = setInterval(updateResendCountdown, 1000);
+
+    // IMPROVED: Form submission with duplicate prevention
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // PREVENT DUPLICATES
+        if (isSubmitting || hasSubmitted) {
+            console.log('Submission already in progress or completed');
+            return;
+        }
+        
+        const otpCode = otpInput.value.trim();
+        
+        if (otpCode.length !== 6) {
+            showFeedback(otpFeedback, 'Please enter a complete 6-digit verification code');
+            otpInput.focus();
+            return;
+        }
+        
+        // FIXED: Validate passwords for signup
+        if (otpType === 'signup' && typeof validatePasswords === 'function' && !validatePasswords()) {
+            return;
+        }
+        
+        // Set flags to prevent duplicates
+        isSubmitting = true;
+        
+        // Show loading state
+        verifyBtn.disabled = true;
+        verifyBtn.querySelector('.btn-text').style.display = 'none';
+        verifyBtn.querySelector('.btn-loading').style.display = 'flex';
+        
+        try {
+            const requestData = { otp_code: otpCode };
+            
+            // FIXED: Only add password for signup and if it exists
+            if (otpType === 'signup' && typeof passwordInput !== 'undefined' && passwordInput) {
+                requestData.password = passwordInput.value;
+            }
+            
+            console.log('Sending verification request...', requestData);
+            
+            const response = await fetch('/auth/api/verify-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            console.log('Response status:', response.status);
+            const data = await response.json();
+            console.log('Response data:', data);
+            
+            if (response.ok && data.status === 'success') {
+                // Mark as successfully submitted
+                hasSubmitted = true;
+                
+                // Clear timers
+                clearInterval(timerInterval);
+                clearInterval(resendInterval);
+                
+                // Show success message ONCE
+                showFeedback(otpFeedback, data.message, 'success');
+                
+                // Disable form to prevent further submissions
+                form.style.pointerEvents = 'none';
+                otpInput.disabled = true;
+                
+                // Redirect after delay
+                setTimeout(() => {
+                    console.log('Redirecting to:', data.redirect);
+                    window.location.href = data.redirect || '/';
+                }, 2000);
+                
+            } else {
+                // Reset submission flag on error
+                isSubmitting = false;
+                
+                const errorMessage = data.message || 'Verification failed';
+                showFeedback(otpFeedback, errorMessage);
+                
+                console.error('Verification failed:', errorMessage);
+                
+                // Clear OTP input on error
+                otpInput.value = '';
+                updateOtpVisual('');
+                otpInput.focus();
+            }
+            
+        } catch (error) {
+            // Reset submission flag on error
+            isSubmitting = false;
+            
+            console.error('Network error during verification:', error);
+            const errorMessage = 'Network error. Please check your connection and try again.';
+            showFeedback(otpFeedback, errorMessage);
+            
+        } finally {
+            // Only reset button if submission failed
+            if (!hasSubmitted) {
+                verifyBtn.disabled = false;
+                verifyBtn.querySelector('.btn-text').style.display = 'flex';
+                verifyBtn.querySelector('.btn-loading').style.display = 'none';
+            }
+        }
+    });
+
+    // Resend OTP
+    resendBtn.addEventListener('click', async function() {
+        if (this.disabled) return;
+        
+        this.disabled = true;
+        this.querySelector('.btn-text').style.display = 'none';
+        this.querySelector('.btn-loading').style.display = 'flex';
+        
+        try {
+            const response = await fetch('/auth/api/resend-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                // Reset timers
+                timeLeft = 600;
+                resendTimeLeft = 60;
+                
+                if (window.showNotification) {
+                    window.showNotification(data.message, 'success');
+                }
+                
+                // Show countdown
+                this.querySelector('.btn-loading').style.display = 'none';
+                this.querySelector('.btn-countdown').style.display = 'flex';
+                
+            } else if (response.status === 401) {
+                // Session expired, redirect to login
+                if (window.showNotification) {
+                    window.showNotification(data.message || 'Session expired. Please login again.', 'error');
+                }
+                
+                setTimeout(() => {
+                    window.location.href = '/auth/login';
+                }, 1500);
+            } else {
+                const errorMessage = data.message || 'Failed to resend code';
+                if (window.showNotification) {
+                    window.showNotification(errorMessage, 'error');
+                }
+                
+                this.disabled = false;
+                this.querySelector('.btn-text').style.display = 'flex';
+                this.querySelector('.btn-loading').style.display = 'none';
+            }
+            
+        } catch (error) {
+            console.error('Resend error:', error);
+            if (window.showNotification) {
+                window.showNotification('Network error. Please try again.', 'error');
+            }
+            
+            this.disabled = false;
+            this.querySelector('.btn-text').style.display = 'flex';
+            this.querySelector('.btn-loading').style.display = 'none';
+        }
+    });
+
+    // PREVENT AUTH.JS CONFLICTS
+    setTimeout(() => {
+        // Stop any auth.js timers that might conflict
+        if (window.SANAAuth && window.SANAAuth.clearTimers) {
+            window.SANAAuth.clearTimers();
+        }
+    }, 100);
+
+    // Override global notification to prevent duplicates
+    let lastNotification = '';
+    let lastNotificationTime = 0;
+    
+    window.showNotification = function(message, type, duration) {
+        const now = Date.now();
+        if (message === lastNotification && (now - lastNotificationTime) < 2000) {
+            console.log('Duplicate notification blocked:', message);
+            return;
+        }
+        lastNotification = message;
+        lastNotificationTime = now;
+        
+        // Show notification (simple alert for now)
+        if (type === 'success') {
+            console.log('✅ SUCCESS:', message);
+        } else if (type === 'error') {
+            console.log('❌ ERROR:', message);
+        }
+        // You can customize this to show proper notifications
+    };
+
+    // Auto-focus OTP input
+    setTimeout(() => {
+        otpInput.focus();
+    }, 100);
+
+    // Add form animations
+    const formWrapper = document.querySelector('.auth-form-wrapper');
+    if (formWrapper) {
+        formWrapper.classList.add('animate-fade-up');
+    }
+});
+</script>
+{% endblock %} 

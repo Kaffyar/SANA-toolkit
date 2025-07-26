@@ -1,0 +1,625 @@
+
+{% extends "base.html" %}
+
+{% block title %}SANA Toolkit - Host Discovery{% endblock %}
+
+{% block page_icon %}<i class="fas fa-network-wired"></i>{% endblock %}
+{% block page_title %}Host Discovery{% endblock %}
+{% block page_subtitle %}Advanced Network Host Detection & Analysis{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/host-discovery.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Two-Column Layout (Like Network Scanner) -->
+<div class="discovery-hero animate-fade-up">
+    <!-- LEFT SIDE: Content -->
+    <div class="hero-content">
+        <h1 class="hero-title">Advanced Host Discovery</h1>
+        <p class="hero-subtitle">Discover and map active hosts across your network infrastructure using advanced scanning techniques and comprehensive host enumeration methods.</p>
+        
+        <!-- Live Discovery Stats -->
+        <div class="hero-stats">
+            <div class="stat-bubble">
+                <div class="stat-icon"><i class="fas fa-server"></i></div>
+                <div class="stat-content">
+                    <div class="stat-number" id="hero-hosts-found">0</div>
+                    <div class="stat-label">Hosts Discovered</div>
+                </div>
+            </div>
+            <div class="stat-bubble">
+                <div class="stat-icon"><i class="fas fa-network-wired"></i></div>
+                <div class="stat-content">
+                    <div class="stat-number" id="hero-networks-scanned">0</div>
+                    <div class="stat-label">Networks Analyzed</div>
+                </div>
+            </div>
+            <div class="stat-bubble">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-content">
+                    <div class="stat-number" id="hero-avg-response">0ms</div>
+                    <div class="stat-label">Avg Response Time</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="hero-actions">
+<button type="button" class="btn btn-hero-primary" id="discovery-btn">
+    <i class="fas fa-play"></i>
+    Start Discovery
+</button>
+            <button class="btn btn-hero-secondary" id="quick-scan-btn">
+                <i class="fas fa-zap"></i>
+                Quick Scan
+            </button>
+            <a href="{{ url_for('scan_history.scan_history') }}" class="btn btn-hero-outline">
+                <i class="fas fa-history"></i>
+                View History
+            </a>
+        </div>
+
+    </div>
+    
+    <!-- RIGHT SIDE: Animated Network Visualization -->
+    <div class="hero-visual">
+        <div class="network-grid">
+            <div class="network-node central-node">
+                <i class="fas fa-router"></i>
+                <div class="node-pulse"></div>
+            </div>
+            <div class="discovery-sweep"></div>
+            <div class="host-indicators">
+                <div class="host-dot active" style="top: 20%; left: 25%; animation-delay: 0s;"></div>
+                <div class="host-dot discovering" style="top: 70%; left: 80%; animation-delay: 0.5s;"></div>
+                <div class="host-dot active" style="top: 85%; left: 15%; animation-delay: 1s;"></div>
+                <div class="host-dot pending" style="top: 35%; left: 75%; animation-delay: 1.5s;"></div>
+                <div class="host-dot active" style="top: 55%; left: 40%; animation-delay: 2s;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Discovery Configuration Panel - Enhanced to Match Network Scanner -->
+<div class="discovery-config-panel animate-fade-up" style="animation-delay: 0.4s;">
+    <div class="panel-header">
+        <div class="panel-title">
+            <i class="fas fa-search-location"></i>
+            <h3>Host Discovery Configuration</h3>
+        </div>
+        <div class="discovery-progress-info">
+            <div class="progress-item" data-tooltip="Current discovery status">
+                <i class="fas fa-radar"></i>
+                <span id="discovery-status-text">Ready</span>
+            </div>
+            <div class="progress-item" data-tooltip="Discovery duration">
+                <i class="fas fa-stopwatch"></i>
+                <span id="discovery-time">0:00</span>
+            </div>
+            <div class="progress-item" data-tooltip="Hosts discovered">
+                <i class="fas fa-server"></i>
+                <span id="hosts-discovered">0 Hosts</span>
+            </div>
+            <div class="progress-item" data-tooltip="Discovery progress">
+                <i class="fas fa-percentage"></i>
+                <span id="discovery-progress-text">0% Complete</span>
+            </div>
+        </div>
+    </div>
+
+    <form id="discovery-form" class="enhanced-form">
+        <!-- Target Configuration Section - Two Column Layout Like Network Scanner -->
+        <div class="form-section animate-fade-up" style="animation-delay: 0.5s;">
+            <div class="section-header">
+                <i class="fas fa-bullseye"></i>
+                <h4>Target Configuration</h4>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group flex-2">
+                    <label for="target-network" class="form-label">
+                        <i class="fas fa-network-wired"></i>
+                        Network Range or IP
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" id="target-network" class="form-control enhanced-input" 
+                               placeholder="192.168.1.0/24, 10.0.0.1-254, or single IP" required>
+                        <div class="input-validation"></div>
+                    </div>
+                    <div class="input-suggestions" id="network-suggestions"></div>
+                </div>
+                
+                <div class="form-group flex-1">
+                    <label for="target-type" class="form-label">
+                        <i class="fas fa-sitemap"></i>
+                        Target Type
+                    </label>
+                    <select id="target-type" class="form-control enhanced-select">
+                        <option value="network-range">Network Range</option>
+                        <option value="single-host">Single Host</option>
+                        <option value="host-list">Host List</option>
+                        <option value="subnet">Subnet</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Discovery Profile Section - Visual Cards Like Network Scanner -->
+        <div class="form-section animate-fade-up" style="animation-delay: 0.6s;">
+            <div class="section-header">
+                <i class="fas fa-radar"></i>
+                <h4>Discovery Profile</h4>
+            </div>
+            
+            <div class="discovery-profiles">
+                <div class="profile-card" data-profile="ping-sweep">
+                    <div class="profile-icon">
+                        <i class="fas fa-satellite-dish"></i>
+                    </div>
+                    <h5>Ping Sweep</h5>
+                    <p>Fast ICMP discovery, good for basic host detection</p>
+                    <div class="profile-stats">
+                        <div class="stat-item">Speed: <span class="stars">★★★</span></div>
+                        <div class="stat-item">Stealth: <span class="stars">★★☆</span></div>
+                    </div>
+                </div>
+                
+                <div class="profile-card" data-profile="arp-scan">
+                    <div class="profile-icon">
+                        <i class="fas fa-wifi"></i>
+                    </div>
+                    <h5>ARP Scan</h5>
+                    <p>Local network discovery using ARP requests</p>
+                    <div class="profile-stats">
+                        <div class="stat-item">Speed: <span class="stars">★★★</span></div>
+                        <div class="stat-item">Stealth: <span class="stars">★★★</span></div>
+                    </div>
+                </div>
+                
+                <div class="profile-card" data-profile="tcp-connect">
+                    <div class="profile-icon">
+                        <i class="fas fa-plug"></i>
+                    </div>
+                    <h5>TCP Connect</h5>
+                    <p>Reliable discovery using TCP connections</p>
+                    <div class="profile-stats">
+                        <div class="stat-item">Speed: <span class="stars">★★☆</span></div>
+                        <div class="stat-item">Stealth: <span class="stars">★☆☆</span></div>
+                    </div>
+                </div>
+                
+                <div class="profile-card active" data-profile="comprehensive">
+                    <div class="profile-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h5>Comprehensive</h5>
+                    <p>Full discovery with multiple techniques</p>
+                    <div class="profile-stats">
+                        <div class="stat-item">Depth: <span class="stars">★★★</span></div>
+                        <div class="stat-item">Time: <span class="text-info">Long</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Launch Discovery Section -->
+        <div class="form-section launch-section animate-fade-up" style="animation-delay: 0.8s;">
+            <div class="launch-button-container">
+<button type="submit" class="btn btn-discovery-launch" id="discovery-launch-btn">
+    <div class="btn-content">
+        <i class="fas fa-radar launch-icon"></i>
+        <span class="btn-text">Start Host Discovery</span>
+    </div>
+    <div class="btn-glow"></div>
+</button>
+                
+<button type="button" class="btn btn-secondary" id="cancel-discovery-btn" style="display: none;">
+    <i class="fas fa-stop"></i>
+    Cancel Discovery
+</button>
+            </div>
+            
+            <div class="launch-info">
+                <div class="info-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Discovery will scan the specified network range for active hosts</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Only scan networks you own or have permission to test</span>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Enhanced Scan Status with Real-time Progress -->
+<div id="scan-status" class="scan-status-panel" style="display: none;">
+    <div class="status-header">
+        <h3><i class="fas fa-satellite-dish"></i> Scan in Progress</h3>
+        <button class="btn btn-outline btn-sm" id="cancel-scan">
+            <i class="fas fa-stop"></i> Cancel
+        </button>
+    </div>
+    
+    <div class="scan-visualization">
+        <div class="scan-radar">
+            <div class="radar-background"></div>
+            <div class="radar-sweep-line"></div>
+            <div class="scan-targets" id="scan-targets"></div>
+        </div>
+        
+        <div class="scan-details">
+            <div class="scan-phase">
+                <h4>Current Phase:</h4>
+                <p id="current-phase">Host Discovery</p>
+            </div>
+            <div class="scan-stats-live">
+                <div class="live-stat">
+                    <span class="stat-label">Hosts Found:</span>
+                    <span class="stat-value" id="live-hosts">0</span>
+                </div>
+                <div class="live-stat">
+                    <span class="stat-label">Ports Scanned:</span>
+                    <span class="stat-value" id="live-ports">0</span>
+                </div>
+                <div class="live-stat">
+                    <span class="stat-label">Open Ports:</span>
+                    <span class="stat-value" id="live-open-ports">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="progress-section">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="scan-progress">
+                <div class="progress-fill"></div>
+                <div class="progress-text">0%</div>
+            </div>
+        </div>
+        <div class="scan-log">
+            <div class="log-header">
+                <h5>Scan Log</h5>
+                <button class="btn btn-xs" id="clear-log">Clear</button>
+            </div>
+            <div class="log-content" id="scan-log">
+                <div class="log-entry">
+                    <span class="timestamp">[00:00:01]</span>
+                    <span class="message">Initializing scan engine...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Discovery Results Section -->
+<div id="discovery-results-section" class="results-panel" style="display: none;">
+    <div class="results-header">
+        <div class="results-title">
+            <h3><i class="fas fa-server"></i> Host Discovery Results</h3>
+            <div class="discovery-summary">
+                <span class="summary-item">
+                    <i class="fas fa-server"></i>
+                    <strong id="total-hosts-found">0</strong> Active Hosts
+                </span>
+                <span class="summary-item">
+                    <i class="fas fa-network-wired"></i>
+                    <strong id="total-subnets">0</strong> Subnets
+                </span>
+                <span class="summary-item">
+                    <i class="fas fa-clock"></i>
+                    <strong id="discovery-duration">0:00</strong> Duration
+                </span>
+                <span class="summary-item">
+                    <i class="fas fa-percentage"></i>
+                    <strong id="response-percentage">0%</strong> Response Rate
+                </span>
+            </div>
+        </div>
+        
+        <div class="results-actions">
+            <div class="view-options">
+                <button class="view-btn active" data-view="grid" data-tooltip="Grid view">
+                    <i class="fas fa-th"></i> Grid
+                </button>
+                <button class="view-btn" data-view="list" data-tooltip="List view">
+                    <i class="fas fa-list"></i> List
+                </button>
+                <button class="view-btn" data-view="network" data-tooltip="Network map">
+                    <i class="fas fa-project-diagram"></i> Network
+                </button>
+            </div>
+            
+            <div class="export-options">
+                <div class="dropdown">
+                    <button class="btn btn-outline dropdown-toggle">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <div class="dropdown-menu">
+                        <button id="export-hosts-json" class="dropdown-item">
+                            <i class="fas fa-file-code"></i> JSON Report
+                        </button>
+                        <button id="export-hosts-csv" class="dropdown-item">
+                            <i class="fas fa-file-csv"></i> CSV Data
+                        </button>
+                        <button id="export-hosts-txt" class="dropdown-item">
+                            <i class="fas fa-file-alt"></i> Host List
+                        </button>
+                        <button id="copy-host-list" class="dropdown-item">
+                            <i class="fas fa-copy"></i> Copy IP List
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Filters -->
+    <div class="results-filters">
+        <div class="filter-group">
+            <label>Filter by Status:</label>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">All Hosts</button>
+                <button class="filter-btn" data-filter="active">Active</button>
+                <button class="filter-btn" data-filter="responding">Responding</button>
+                <button class="filter-btn" data-filter="timeout">Timeout</button>
+            </div>
+        </div>
+        
+        <div class="filter-group">
+            <label>Operating System:</label>
+            <select class="filter-select" id="os-filter">
+                <option value="">All OS</option>
+                <option value="windows">Windows</option>
+                <option value="linux">Linux</option>
+                <option value="macos">macOS</option>
+                <option value="unknown">Unknown</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <input type="text" class="filter-search" placeholder="Search hosts, IPs, hostnames..." id="host-search">
+        </div>
+    </div>
+
+    <!-- Results Content -->
+    <div class="results-content">
+        <div id="grid-view" class="results-view active">
+            <div id="hosts-grid" class="hosts-grid">
+                <!-- Dynamic host cards will be inserted here -->
+            </div>
+        </div>
+        
+        <div id="list-view" class="results-view">
+            <div id="hosts-table" class="hosts-table-container">
+                <!-- Dynamic host table will be inserted here -->
+            </div>
+        </div>
+        
+        <div id="network-view" class="results-view">
+            <div class="network-map-container">
+                <div id="network-topology" class="network-topology">
+                    <!-- Network visualization will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="results-footer">
+        <button class="btn btn-primary" id="new-discovery-btn">
+            <i class="fas fa-redo"></i> New Discovery
+        </button>
+        <button class="btn btn-secondary" id="save-discovery-btn">
+            <i class="fas fa-save"></i> Save Results
+        </button>
+        <button class="btn btn-outline" id="share-discovery-btn">
+            <i class="fas fa-share"></i> Share Results
+        </button>
+    </div>
+</div>
+
+<!-- Examples and Documentation -->
+<div class="info-panels animate-fade-up" id="examples" style="animation-delay: 0.9s;">
+    <div class="examples-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-lightbulb"></i> 
+                Discovery Examples & Tips
+            </h4>
+        </div>
+        <div class="examples-content">
+            <div class="example-carousel">
+                <div class="example-slide active">
+                    <div class="example-icon">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <h5>Network Range Discovery</h5>
+                    <p>Discover all active hosts in a network range using CIDR notation for comprehensive mapping</p>
+                    <code>192.168.1.0/24</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-wifi"></i>
+                    </div>
+                    <h5>ARP Scan (Local Network)</h5>
+                    <p>Fast discovery of hosts on the same network segment using ARP requests</p>
+                    <code>10.0.0.1-254</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-satellite-dish"></i>
+                    </div>
+                    <h5>ICMP Ping Sweep</h5>
+                    <p>Traditional ping sweep to discover responsive hosts across network boundaries</p>
+                    <code>172.16.0.0/16</code>
+                    </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h5>Stealth Discovery</h5>
+                    <p>Low-profile host discovery using various techniques to avoid detection systems</p>
+                    <code>Timing: T1-T2</code>
+                </div>
+            </div>
+            <div class="example-navigation">
+                <button class="example-nav prev" data-tooltip="Previous example">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="example-dots">
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <button class="example-nav next" data-tooltip="Next example">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="reference-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-book"></i> 
+                Quick Reference
+            </h4>
+        </div>
+        <div class="reference-content">
+            <div class="reference-section">
+                <h5>Discovery Methods</h5>
+                <ul>
+                    <li>
+                        <span>ICMP Ping</span>
+                        <code>Fast</code>
+                    </li>
+                    <li>
+                        <span>ARP Scan</span>
+                        <code>Local</code>
+                    </li>
+                    <li>
+                        <span>TCP Connect</span>
+                        <code>Reliable</code>
+                    </li>
+                    <li>
+                        <span>UDP Discovery</span>
+                        <code>Services</code>
+                    </li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Network Formats</h5>
+                <ul>
+                    <li>
+                        <span>Single IP</span>
+                        <code>192.168.1.1</code>
+                    </li>
+                    <li>
+                        <span>CIDR Range</span>
+                        <code>10.0.0.0/24</code>
+                    </li>
+                    <li>
+                        <span>IP Range</span>
+                        <code>172.16.1.1-100</code>
+                    </li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Timing Templates</h5>
+                <ul>
+                    <li>
+                        <span>T1-T2 Stealth</span>
+                        <code>Slow</code>
+                    </li>
+                    <li>
+                        <span>T3 Normal</span>
+                        <code>Default</code>
+                    </li>
+                    <li>
+                        <span>T4-T5 Fast</span>
+                        <code>Aggressive</code>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Tips Section -->
+<div class="advanced-tips-section animate-fade-up" style="animation-delay: 1.0s;">
+    <div class="tips-container">
+        <h3>
+            <i class="fas fa-graduation-cap"></i> 
+            Host Discovery Best Practices
+        </h3>
+        <div class="tips-grid">
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-network-wired"></i>
+                </div>
+                <h5>Network Segmentation</h5>
+                <p>Understand your network topology before discovery. Different segments may require different approaches.</p>
+            </div>
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h5>Timing Considerations</h5>
+                <p>Use slower timing templates (T1-T2) for external networks to avoid triggering security systems.</p>
+            </div>
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h5>Stealth Techniques</h5>
+                <p>Combine multiple discovery methods for comprehensive results while maintaining operational security.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Legal Notice -->
+<div class="legal-notice-section animate-fade-up" style="animation-delay: 1.1s;">
+    <div class="notice-container">
+        <div class="notice-header">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h4>Important Legal Notice</h4>
+        </div>
+        <div class="notice-content">
+            <p>Host discovery should only be performed on networks you own or have explicit written permission to test. Unauthorized network scanning may violate local laws, regulations, and organizational policies. Always ensure you have proper authorization before conducting any network discovery activities.</p>
+            <div class="notice-points">
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>Only scan networks you own or have permission to test</span>
+                </div>
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>Respect network policies and rate limiting</span>
+                </div>
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>Be aware of potential impact on network performance</span>
+                </div>
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>Follow responsible disclosure practices</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Help Button -->
+<div class="floating-help" data-tooltip="Get help with host discovery">
+    <button class="help-btn" id="floating-help" aria-label="Get help">
+        <i class="fas fa-question"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/host-discovery.js') }}"></script>
+{% endblock %} 

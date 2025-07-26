@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#151a30">
+    <meta name="description" content="SANA Toolkit - Advanced Cybersecurity Assessment Platform with secure authentication">
+    <meta name="keywords" content="cybersecurity, network scanning, malware analysis, authentication">
+    <title>{% block title %}SANA Toolkit - Authentication{% endblock %}</title>
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    
+    <!-- Font Awesome icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts - Space Grotesk and Roboto Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Particles.js for background effects -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    
+    <!-- Base CSS Files -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sana-core.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sana-components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    
+    <!-- Block for additional CSS -->
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Apply theme immediately to prevent flash -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('themePreference');
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark-theme');
+            } else {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{{ url_for('static', filename='js/auth.js') }}" as="script">
+</head>
+<body class="auth-body">
+    <!-- Enhanced Background Animation -->
+    <div class="auth-background">
+        <div class="cyber-grid"></div>
+        <div class="floating-elements">
+            <div class="element element-1"></div>
+            <div class="element element-2"></div>
+            <div class="element element-3"></div>
+            <div class="element element-4"></div>
+        </div>
+    </div>
+
+    <!-- Main Auth Container -->
+    <div class="auth-container">
+        <!-- Left Side - Authentication Forms -->
+        <div class="auth-forms">
+            <div class="form-container">
+                <!-- Header with theme toggle -->
+                <div class="auth-header">
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Switch Theme">
+                        <i class="fas fa-moon"></i>
+                        <i class="fas fa-sun"></i>
+                    </button>
+                </div>
+
+                <!-- Main Form Content -->
+                <div class="form-content">
+                    {% block auth_content %}
+                    <!-- Authentication forms will be inserted here -->
+                    {% endblock %}
+                </div>
+
+                <!-- Enhanced Footer -->
+                <div class="auth-footer">
+                    <div class="footer-links">
+                        <a href="#" class="footer-link" aria-label="Privacy Policy">
+                            <i class="fas fa-shield-alt"></i>
+                            Privacy Policy
+                        </a>
+                        <a href="#" class="footer-link" aria-label="Terms of Service">
+                            <i class="fas fa-file-contract"></i>
+                            Terms of Service
+                        </a>
+                        <a href="#" class="footer-link" aria-label="Support">
+                            <i class="fas fa-headset"></i>
+                            Support
+                        </a>
+                    </div>
+                    <div class="footer-copyright">
+                        <p>&copy; {{ current_year }} SANA Toolkit. All rights reserved.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Enhanced Branding -->
+        <div class="auth-branding sticky-branding" role="complementary" aria-label="Brand information">
+            <!-- Particles Background Container -->
+            <div id="particles-js" class="particles-container" aria-hidden="true"></div>
+            
+            <div class="brand-content">
+                <!-- Enhanced Logo Section -->
+                <div class="brand-logo-enhanced">
+                    <div class="logo-container-enhanced">
+                        <div class="logo-icon-wrapper">
+                            <i class="fas fa-shield-alt logo-icon" aria-hidden="true"></i>
+                            <div class="logo-glow" aria-hidden="true"></div>
+                        </div>
+                        <div class="logo-text">
+                            <h1>SANA<span class="gradient-text">Toolkit</span></h1>
+                            <div class="logo-underline" aria-hidden="true"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Tagline Section -->
+                <div class="brand-tagline-enhanced">
+                    <h2 class="main-tagline">Cybersecurity Assessment Platform</h2>
+                    <p class="tagline-description">
+                        Advanced network scanning, malware analysis,<br>
+                        and threat intelligence in one unified platform.
+                    </p>
+                </div>
+                
+                <!-- FIXED: PERFECTLY ALIGNED Features Grid -->
+                <div class="security-features-enhanced">
+                    <div class="features-grid-balanced">
+                        <!-- Top Row - 2 items -->
+                        <div class="feature-item-enhanced" data-delay="0" tabindex="0" role="button" aria-label="Network Scanning feature">
+                            <div class="feature-icon-wrapper">
+                                <i class="fas fa-network-wired" aria-hidden="true"></i>
+                                <div class="icon-bg-glow" aria-hidden="true"></div>
+                            </div>
+                            <span class="feature-text">Network Scanning</span>
+                        </div>
+                        
+                        <div class="feature-item-enhanced" data-delay="1" tabindex="0" role="button" aria-label="Malware Detection feature">
+                            <div class="feature-icon-wrapper">
+                                <i class="fas fa-shield-virus" aria-hidden="true"></i>
+                                <div class="icon-bg-glow" aria-hidden="true"></div>
+                            </div>
+                            <span class="feature-text">Malware Detection</span>
+                        </div>
+                        
+                        <!-- Middle Row - 2 items -->
+                        <div class="feature-item-enhanced" data-delay="2" tabindex="0" role="button" aria-label="Vulnerability Assessment feature">
+                            <div class="feature-icon-wrapper">
+                                <i class="fas fa-search-plus" aria-hidden="true"></i>
+                                <div class="icon-bg-glow" aria-hidden="true"></div>
+                            </div>
+                            <span class="feature-text">Scan History</span>
+                        </div>
+                        
+                        <div class="feature-item-enhanced" data-delay="3" tabindex="0" role="button" aria-label="Host Discovery feature">
+                            <div class="feature-icon-wrapper">
+                                <i class="fas fa-server" aria-hidden="true"></i>
+                                <div class="icon-bg-glow" aria-hidden="true"></div>
+                            </div>
+                            <span class="feature-text">Host Discovery</span>
+                        </div>
+                        
+                        <!-- Bottom Row - 1 centered item -->
+                        <div class="feature-item-enhanced feature-bottom-center" data-delay="4" tabindex="0" role="button" aria-label="DNS Reconnaissance feature">
+                            <div class="feature-icon-wrapper">
+                                <i class="fas fa-sitemap" aria-hidden="true"></i>
+                                <div class="icon-bg-glow" aria-hidden="true"></div>
+                            </div>
+                            <span class="feature-text">DNS Reconnaissance</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Security Badges -->
+                <div class="security-badges-enhanced">
+                    <div class="badge-enhanced primary-badge" tabindex="0" role="button" aria-label="Secure Authentication">
+                        <div class="badge-icon">
+                            <i class="fas fa-lock" aria-hidden="true"></i>
+                        </div>
+                        <span class="badge-text">Secure Authentication</span>
+                        <div class="badge-shine" aria-hidden="true"></div>
+                    </div>
+                    
+                    <div class="badge-enhanced secondary-badge" tabindex="0" role="button" aria-label="OTP Verification">
+                        <div class="badge-icon">
+                            <i class="fas fa-user-shield" aria-hidden="true"></i>
+                        </div>
+                        <span class="badge-text">OTP Verification</span>
+                        <div class="badge-shine" aria-hidden="true"></div>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Security Stats Footer -->
+                <div class="security-stats-footer">
+                    <div class="stats-grid">
+                        <div class="stat-item" tabindex="0" role="button" aria-label="99.9% Uptime guarantee">
+                            <div class="stat-number">99.9%</div>
+                            <div class="stat-label">Uptime</div>
+                        </div>
+                        <div class="stat-item" tabindex="0" role="button" aria-label="24/7 Support availability">
+                            <div class="stat-number">24/7</div>
+                            <div class="stat-label">Support</div>
+                        </div>
+                        <div class="stat-item" tabindex="0" role="button" aria-label="256-bit Encryption security">
+                            <div class="stat-number">256-bit</div>
+                            <div class="stat-label">Encryption</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;" role="dialog" aria-labelledby="loading-text" aria-hidden="true">
+        <div class="loading-content">
+            <div class="loading-spinner" aria-hidden="true">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Enhanced Notification System -->
+    <div id="notification-container" class="notification-container" role="region" aria-label="Notifications" aria-live="polite"></div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    {% block scripts %}{% endblock %}
+
+    <!-- Enhanced Branding Section Effects -->
+    <script>
+        // Enhanced branding section effects
+        document.addEventListener('DOMContentLoaded', function() {
+            const brandingSection = document.querySelector('.sticky-branding');
+            const brandLogo = document.querySelector('.brand-logo-enhanced');
+            const featureItems = document.querySelectorAll('.feature-item-enhanced');
+            
+            if (!brandingSection) return;
+            
+            // Initialize particles.js with enhanced configuration
+            if (typeof particlesJS !== 'undefined') {
+                particlesJS('particles-js', {
+                    "particles": {
+                        "number": {
+                            "value": 50,
+                            "density": {
+                                "enable": true,
+                                "value_area": 1000
+                            }
+                        },
+                        "color": {
+                            "value": ["#4361ee", "#00ff8c", "#6c63ff"]
+                        },
+                        "shape": {
+                            "type": "circle",
+                            "stroke": {
+                                "width": 0,
+                                "color": "#000000"
+                            }
+                        },
+                        "opacity": {
+                            "value": 0.3,
+                            "random": true,
+                            "anim": {
+                                "enable": true,
+                                "speed": 0.8,
+                                "opacity_min": 0.1,
+                                "sync": false
+                            }
+                        },
+                        "size": {
+                            "value": 3,
+                            "random": true,
+                            "anim": {
+                                "enable": true,
+                                "speed": 2,
+                                "size_min": 0.1,
+                                "sync": false
+                            }
+                        },
+                        "line_linked": {
+                            "enable": true,
+                            "distance": 150,
+                            "color": "#00ff8c",
+                            "opacity": 0.2,
+                            "width": 1
+                        },
+                        "move": {
+                            "enable": true,
+                            "speed": 1.5,
+                            "direction": "none",
+                            "random": true,
+                            "straight": false,
+                            "out_mode": "out",
+                            "bounce": false,
+                            "attract": {
+                                "enable": true,
+                                "rotateX": 600,
+                                "rotateY": 1200
+                            }
+                        }
+                    },
+                    "interactivity": {
+                        "detect_on": "canvas",
+                        "events": {
+                            "onhover": {
+                                "enable": true,
+                                "mode": "grab"
+                            },
+                            "onclick": {
+                                "enable": true,
+                                "mode": "push"
+                            },
+                            "resize": true
+                        },
+                        "modes": {
+                            "grab": {
+                                "distance": 140,
+                                "line_linked": {
+                                    "opacity": 0.6
+                                }
+                            },
+                            "push": {
+                                "particles_nb": 4
+                            }
+                        }
+                    },
+                    "retina_detect": true
+                });
+            }
+            
+            // Enhanced parallax effect on mouse move
+            brandingSection.addEventListener('mousemove', function(e) {
+                const rect = brandingSection.getBoundingClientRect();
+                const mouseX = (e.clientX - rect.left) / rect.width;
+                const mouseY = (e.clientY - rect.top) / rect.height;
+                
+                // Move logo slightly with mouse
+                if (brandLogo) {
+                    const moveX = (mouseX - 0.5) * 20;
+                    const moveY = (mouseY - 0.5) * 20;
+                    brandLogo.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                }
+                
+                // Add subtle movement to feature items
+                featureItems.forEach((item, index) => {
+                    const depth = 1 + (index * 0.1);
+                    const moveX = (mouseX - 0.5) * 15 / depth;
+                    const moveY = (mouseY - 0.5) * 15 / depth;
+                    item.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                });
+            });
+            
+            // Reset transforms when mouse leaves
+            brandingSection.addEventListener('mouseleave', function() {
+                if (brandLogo) {
+                    brandLogo.style.transform = 'translate(0, 0)';
+                }
+                
+                featureItems.forEach(item => {
+                    item.style.transform = 'translate(0, 0)';
+                });
+            });
+            
+            // Enhanced scroll effect
+            function handleScroll() {
+                const scrollPosition = window.scrollY;
+                const viewportHeight = window.innerHeight;
+                const scrollPercentage = Math.min(scrollPosition / (viewportHeight * 0.3), 1);
+                
+                // Apply subtle effects based on scroll
+                if (brandingSection) {
+                    brandingSection.style.backdropFilter = `blur(${10 + scrollPercentage * 5}px)`;
+                }
+            }
+            
+            // Throttled scroll handler for performance
+            let scrollTimeout;
+            window.addEventListener('scroll', function() {
+                if (!scrollTimeout) {
+                    scrollTimeout = setTimeout(function() {
+                        handleScroll();
+                        scrollTimeout = null;
+                    }, 16); // ~60fps
+                }
+            });
+            
+            // Enhanced 3D tilt effect on hover
+            brandingSection.addEventListener('mouseenter', function() {
+                brandingSection.style.transition = 'transform 0.3s ease-out';
+            });
+            
+            brandingSection.addEventListener('mousemove', function(e) {
+                const rect = brandingSection.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const mouseX = e.clientX - centerX;
+                const mouseY = e.clientY - centerY;
+                
+                const rotateX = mouseY * -0.003;
+                const rotateY = mouseX * 0.003;
+                
+                brandingSection.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.005, 1.005, 1.005)`;
+            });
+            
+            brandingSection.addEventListener('mouseleave', function() {
+                brandingSection.style.transition = 'transform 0.5s ease-out';
+                brandingSection.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+            });
+            
+            // Enhanced feature item interactions
+            featureItems.forEach((item, index) => {
+                item.addEventListener('mouseenter', function() {
+                    // Add ripple effect
+                    const ripple = document.createElement('div');
+                    ripple.className = 'feature-ripple';
+                    ripple.style.cssText = `
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        width: 0;
+                        height: 0;
+                        background: radial-gradient(circle, rgba(0, 255, 140, 0.3) 0%, transparent 70%);
+                        border-radius: 50%;
+                        transform: translate(-50%, -50%);
+                        animation: ripple 0.6s ease-out;
+                        pointer-events: none;
+                        z-index: 0;
+                    `;
+                    
+                    this.appendChild(ripple);
+                    
+                    setTimeout(() => {
+                        if (ripple.parentNode) {
+                            ripple.parentNode.removeChild(ripple);
+                        }
+                    }, 600);
+                });
+                
+                // Keyboard accessibility
+                item.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.click();
+                    }
+                });
+            });
+            
+            // Show scroll hint if content overflows
+            function checkOverflow() {
+                const content = brandingSection.querySelector('.brand-content');
+                const scrollHint = brandingSection.querySelector('.scroll-hint');
+                
+                if (content && scrollHint) {
+                    if (content.scrollHeight > brandingSection.clientHeight) {
+                        scrollHint.style.display = 'block';
+                        setTimeout(() => {
+                            scrollHint.style.opacity = '0.6';
+                        }, 2000);
+                        setTimeout(() => {
+                            scrollHint.style.opacity = '0';
+                        }, 5000);
+                    }
+                }
+            }
+            
+            // Check overflow on load and resize
+            checkOverflow();
+            window.addEventListener('resize', checkOverflow);
+            
+            // Add CSS for ripple animation
+            if (!document.querySelector('#ripple-styles')) {
+                const style = document.createElement('style');
+                style.id = 'ripple-styles';
+                style.textContent = `
+                    @keyframes ripple {
+                        0% { width: 0; height: 0; opacity: 1; }
+                        100% { width: 80px; height: 80px; opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        });
+    </script>
+
+    <!-- Enhanced Theme Toggle -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const themeToggle = document.getElementById('theme-toggle');
+            
+            function updateThemeToggle() {
+                const isDark = document.documentElement.classList.contains('dark-theme');
+                const moonIcon = themeToggle.querySelector('.fa-moon');
+                const sunIcon = themeToggle.querySelector('.fa-sun');
+                
+                if (isDark) {
+                    moonIcon.style.opacity = '0';
+                    moonIcon.style.transform = 'rotate(180deg)';
+                    sunIcon.style.opacity = '1';
+                    sunIcon.style.transform = 'rotate(0deg)';
+                } else {
+                    moonIcon.style.opacity = '1';
+                    moonIcon.style.transform = 'rotate(0deg)';
+                    sunIcon.style.opacity = '0';
+                    sunIcon.style.transform = 'rotate(-180deg)';
+                }
+            }
+            
+            themeToggle.addEventListener('click', function() {
+                // Add click animation
+                this.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+                
+                document.documentElement.classList.toggle('dark-theme');
+                const isDark = document.documentElement.classList.contains('dark-theme');
+                localStorage.setItem('themePreference', isDark ? 'dark' : 'light');
+                updateThemeToggle();
+            });
+            
+            // Keyboard accessibility
+            themeToggle.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.click();
+                }
+            });
+            
+            updateThemeToggle();
+        });
+    </script>
+
+    <!-- Enhanced Page Transitions -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add loaded class for animations
+            document.body.classList.add('loaded');
+            
+            // Enhanced form container animations
+            const formContainer = document.querySelector('.form-container');
+            if (formContainer) {
+                formContainer.classList.add('animate-in');
+            }
+            
+            // Staggered animation for footer links
+            const footerLinks = document.querySelectorAll('.footer-link');
+            footerLinks.forEach((link, index) => {
+                link.style.opacity = '0';
+                link.style.transform = 'translateY(10px)';
+                setTimeout(() => {
+                    link.style.transition = 'all 0.3s ease';
+                    link.style.opacity = '1';
+                    link.style.transform = 'translateY(0)';
+                }, 100 * index);
+            });
+            
+            // Enhanced accessibility announcements
+            const announceToScreenReader = (message) => {
+                const announcement = document.createElement('div');
+                announcement.setAttribute('aria-live', 'polite');
+                announcement.setAttribute('aria-atomic', 'true');
+                announcement.style.position = 'absolute';
+                announcement.style.left = '-10000px';
+                announcement.style.width = '1px';
+                announcement.style.height = '1px';
+                announcement.style.overflow = 'hidden';
+                announcement.textContent = message;
+                document.body.appendChild(announcement);
+                
+                setTimeout(() => {
+                    document.body.removeChild(announcement);
+                }, 1000);
+            };
+            
+            // Make announcement function globally available
+            window.announceToScreenReader = announceToScreenReader;
+            
+            // Performance monitoring
+            if ('PerformanceObserver' in window) {
+                const observer = new PerformanceObserver((list) => {
+                    for (const entry of list.getEntries()) {
+                        if (entry.entryType === 'paint' && entry.name === 'first-contentful-paint') {
+                            console.log('First Contentful Paint:', entry.startTime);
+                        }
+                    }
+                });
+                observer.observe({ entryTypes: ['paint'] });
+            }
+        });
+    </script>
+
+    <!-- Service Worker Registration (Optional) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                .then(function(registration) {
+                    console.log('SW registered: ', registration);
+                })
+                .catch(function(registrationError) {
+                    console.log('SW registration failed: ', registrationError);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

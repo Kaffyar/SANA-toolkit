@@ -1,0 +1,615 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - SANA Toolkit{% endblock %}
+
+{% block page_icon %}<i class="fas fa-cog"></i>{% endblock %}
+{% block page_title %}Settings & Preferences{% endblock %}
+{% block page_subtitle %}Customize your SANA Toolkit experience and manage your account{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Settings Hero Section -->
+<div class="settings-hero-section animate-fade-up">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1 class="hero-title">Account Management Center</h1>
+            <p class="hero-subtitle">Personalize your security toolkit experience with advanced customization options, API integrations, and account management features</p>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.1s;">
+                <div class="stat-value" id="total-scans-count">{{ user_stats.total_scans if user_stats else 0 }}</div>
+                <div class="stat-label">Total Scans</div>
+            </div>
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.2s;">
+                <div class="stat-value" id="completed-scans">{{ user_stats.completed_scans if user_stats else 0 }}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.3s;">
+                <div class="stat-value">{{ settings|length }}</div>
+                <div class="stat-label">Settings</div>
+            </div>
+        </div>
+    </div>
+    <div class="settings-visualization">
+        <div class="settings-gear-system">
+            <div class="gear-container">
+                <div class="gear large" data-tooltip="Core Settings">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="gear medium" data-tooltip="API Configuration">
+                    <i class="fas fa-key"></i>
+                </div>
+                <div class="gear small" data-tooltip="Preferences">
+                    <i class="fas fa-sliders-h"></i>
+                </div>
+                <div class="gear-chain" id="gear-chain"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Success/Error Messages -->
+<div id="settings-messages" class="settings-alert info" style="display: none;">
+    <i class="fas fa-info-circle"></i>
+    <span id="settings-message-text"></span>
+</div>
+
+<!-- Profile Management Section -->
+<div class="settings-config-panel animate-fade-up" style="animation-delay: 0.2s;">
+    <div class="panel-header">
+        <div class="section-header">
+            <h3>
+                <i class="fas fa-user-shield"></i>
+                Profile Management
+            </h3>
+            <p>Manage your account information and security settings</p>
+        </div>
+    </div>
+    
+    <div class="enhanced-form">
+        <div class="form-section">
+            <div class="section-header">
+                <h4>
+                    <i class="fas fa-envelope"></i>
+                    Email Configuration
+                </h4>
+                <p>Update your email address and verification status</p>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-envelope"></i>
+                        Current Email Address
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="email" 
+                               class="form-control" 
+                               id="user-email" 
+                               value="{{ user_info.email }}" 
+                               readonly>
+                        <button class="btn btn-outline" 
+                                type="button" 
+                                id="edit-email-btn">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </div>
+                    <div class="account-status">
+                        <span class="status-badge {{ 'verified' if user_info.is_verified else 'unverified' }}">
+                            <i class="fas fa-{{ 'check-circle' if user_info.is_verified else 'exclamation-circle' }}"></i>
+                            {{ 'Verified Account' if user_info.is_verified else 'Unverified Account' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Email Edit Form (Hidden by default) -->
+            <div id="email-edit-form" class="form-section" style="display: none;">
+                <div class="section-header">
+                    <h4>
+                        <i class="fas fa-edit"></i>
+                        Update Email Address
+                    </h4>
+                    <p>Enter your new email address below</p>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-envelope"></i>
+                            New Email Address
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="new-email" 
+                                   placeholder="Enter new email address">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button class="btn btn-primary" id="save-email-btn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button class="btn btn-secondary" id="cancel-email-btn">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <div class="section-header">
+                <h4>
+                    <i class="fas fa-key"></i>
+                    Password Security
+                </h4>
+                <p>Change your account password to maintain security</p>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <button class="btn btn-outline btn-large" id="change-password-btn">
+                        <i class="fas fa-key"></i> Change Password
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Password Change Form (Hidden by default) -->
+            <div id="password-change-form" class="form-section" style="display: none;">
+                <div class="section-header">
+                    <h4>
+                        <i class="fas fa-lock"></i>
+                        Update Password
+                    </h4>
+                    <p>Enter your current password and choose a new secure password</p>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-lock"></i>
+                            Current Password
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="current-password" 
+                                   placeholder="Enter current password">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-lock"></i>
+                            New Password
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="new-password" 
+                                   placeholder="Enter new password">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-lock"></i>
+                            Confirm New Password
+                        </label>
+                        <div class="input-wrapper">
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="confirm-password" 
+                                   placeholder="Confirm new password">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button class="btn btn-primary" id="save-password-btn">
+                        <i class="fas fa-save"></i> Update Password
+                    </button>
+                    <button class="btn btn-secondary" id="cancel-password-btn">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Application Preferences Section -->
+<div class="settings-config-panel animate-fade-up" style="animation-delay: 0.3s;">
+    <div class="panel-header">
+        <div class="section-header">
+            <h3>
+                <i class="fas fa-palette"></i>
+                Application Preferences
+            </h3>
+            <p>Customize your SANA Toolkit experience and interface</p>
+        </div>
+    </div>
+    
+    <div class="enhanced-form">
+        <div class="form-section">
+            <div class="section-header">
+                <h4>
+                    <i class="fas fa-moon"></i>
+                    Theme & Appearance
+                </h4>
+                <p>Choose your preferred visual theme and interface style</p>
+            </div>
+            
+            <div class="theme-options-grid">
+                <div class="theme-option-card" data-theme="dark">
+                    <div class="theme-preview dark-theme">
+                        <div class="preview-header"></div>
+                        <div class="preview-content">
+                            <div class="preview-line"></div>
+                            <div class="preview-line short"></div>
+                            <div class="preview-line"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <h5>🌙 Dark Theme</h5>
+                        <p>Elegant dark interface for low-light environments</p>
+                    </div>
+                    <input type="radio" name="theme" value="dark" {{ 'checked' if settings.theme == 'dark' else '' }}>
+                </div>
+                
+                <div class="theme-option-card" data-theme="light">
+                    <div class="theme-preview light-theme">
+                        <div class="preview-header"></div>
+                        <div class="preview-content">
+                            <div class="preview-line"></div>
+                            <div class="preview-line short"></div>
+                            <div class="preview-line"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <h5>☀️ Light Theme</h5>
+                        <p>Clean light interface for bright environments</p>
+                    </div>
+                    <input type="radio" name="theme" value="light" {{ 'checked' if settings.theme == 'light' else '' }}>
+                </div>
+                
+                <div class="theme-option-card" data-theme="auto">
+                    <div class="theme-preview auto-theme">
+                        <div class="preview-header"></div>
+                        <div class="preview-content">
+                            <div class="preview-line"></div>
+                            <div class="preview-line short"></div>
+                            <div class="preview-line"></div>
+                        </div>
+                    </div>
+                    <div class="theme-info">
+                        <h5>🔄 Auto Theme</h5>
+                        <p>Automatically adapts to your system preferences</p>
+                    </div>
+                    <input type="radio" name="theme" value="auto" {{ 'checked' if settings.theme == 'auto' else '' }}>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <div class="section-header">
+                <h4>
+                    <i class="fas fa-clock"></i>
+                    Performance Settings
+                </h4>
+                <p>Configure scan timeouts and performance parameters</p>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-stopwatch"></i>
+                        Default Scan Timeout
+                    </label>
+                    <div class="input-wrapper">
+                        <select class="form-control" id="scan-timeout">
+                            <option value="30" {{ 'selected' if settings.scan_timeout == 30 else '' }}>
+                                30 seconds - Fast scans
+                            </option>
+                            <option value="60" {{ 'selected' if settings.scan_timeout == 60 else '' }}>
+                                1 minute - Balanced
+                            </option>
+                            <option value="120" {{ 'selected' if settings.scan_timeout == 120 else '' }}>
+                                2 minutes - Thorough
+                            </option>
+                            <option value="300" {{ 'selected' if settings.scan_timeout == 300 else '' }}>
+                                5 minutes - Comprehensive
+                            </option>
+                            <option value="600" {{ 'selected' if settings.scan_timeout == 600 else '' }}>
+                                10 minutes - Deep analysis
+                            </option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Configuration Section -->
+<div class="settings-config-panel animate-fade-up" style="animation-delay: 0.4s;">
+    <div class="panel-header">
+        <div class="section-header">
+            <h3>
+                <i class="fas fa-plug"></i>
+                API Integrations
+            </h3>
+            <p>Configure external API services for enhanced functionality</p>
+        </div>
+    </div>
+    
+    <div class="enhanced-form">
+        <div class="form-section">
+            <div class="section-header">
+                <h4>
+                    <i class="fas fa-shield-virus"></i>
+                    VirusTotal Integration
+                </h4>
+                <p>Connect your VirusTotal API key for enhanced threat analysis</p>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-key"></i>
+                        VirusTotal API Key
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="password" 
+                               class="form-control" 
+                               id="virustotal-api-key" 
+                               placeholder="Enter your VirusTotal API key"
+                               value="{{ settings.virustotal_api_key if settings.virustotal_api_key else '' }}">
+                        <button class="btn btn-outline" 
+                                type="button" 
+                                id="toggle-api-key">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="api-info">
+                        <p class="info-text">
+                            <i class="fas fa-info-circle"></i>
+                            Optional: Using your own API key increases rate limits and provides faster results.
+                            <a href="https://www.virustotal.com/gui/join-us" target="_blank" class="link-primary">Get API key</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <button class="btn btn-secondary" id="validate-api-key">
+                        <i class="fas fa-check-circle"></i> Validate API Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Management Section -->
+<div class="settings-config-panel animate-fade-up" style="animation-delay: 0.5s;">
+    <div class="panel-header">
+        <div class="section-header">
+            <h3>
+                <i class="fas fa-database"></i>
+                Data Management
+            </h3>
+            <p>Manage your scan history and data retention policies</p>
+        </div>
+    </div>
+    
+    <div class="enhanced-form">
+        <div class="form-section">
+            <div class="section-header">
+                <h4>
+                    <i class="fas fa-history"></i>
+                    Scan History Settings
+                </h4>
+                <p>Configure automatic cleanup and data retention policies</p>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-trash-alt"></i>
+                        Auto-cleanup Old Scans
+                    </label>
+                    <div class="input-wrapper">
+                        <select class="form-control" id="history-cleanup">
+                            <option value="30" {{ 'selected' if settings.history_cleanup_days == 30 else '' }}>
+                                After 30 days - Minimal storage
+                            </option>
+                            <option value="60" {{ 'selected' if settings.history_cleanup_days == 60 else '' }}>
+                                After 60 days - Standard
+                            </option>
+                            <option value="90" {{ 'selected' if settings.history_cleanup_days == 90 else '' }}>
+                                After 90 days - Extended
+                            </option>
+                            <option value="365" {{ 'selected' if settings.history_cleanup_days == 365 else '' }}>
+                                After 1 year - Long-term
+                            </option>
+                            <option value="0" {{ 'selected' if settings.history_cleanup_days == 0 else '' }}>
+                                Never - Keep all data
+                            </option>
+                        </select>
+                    </div>
+                    <div class="cleanup-info">
+                        <p class="info-text">
+                            <i class="fas fa-info-circle"></i>
+                            Automatically delete old scan results to save storage space and maintain performance.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <button class="btn btn-warning" id="cleanup-now-btn">
+                        <i class="fas fa-broom"></i> Cleanup Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Actions -->
+<div class="settings-actions-panel animate-fade-up" style="animation-delay: 0.6s;">
+    <div class="actions-content">
+        <div class="actions-info">
+            <h4>
+                <i class="fas fa-save"></i>
+                Save Your Changes
+            </h4>
+            <p>Apply your settings or reset to default values</p>
+        </div>
+        <div class="actions-buttons">
+            <button class="btn btn-secondary" id="reset-settings-btn">
+                <i class="fas fa-undo"></i>
+                Reset to Defaults
+            </button>
+            <button class="btn btn-primary" id="save-settings-btn">
+                <i class="fas fa-save"></i>
+                Save All Settings
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Account Information Cards -->
+<div class="info-panels animate-fade-up" style="animation-delay: 0.7s;">
+    <div class="info-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-info-circle"></i>
+                Account Information
+            </h4>
+        </div>
+        <div class="panel-content">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Account Status:</span>
+                    <span class="status-badge {{ 'verified' if user_info.is_verified else 'unverified' }}">
+                        <i class="fas fa-{{ 'check-circle' if user_info.is_verified else 'exclamation-circle' }}"></i>
+                        {{ 'Verified' if user_info.is_verified else 'Unverified' }}
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">User ID:</span>
+                    <span class="info-value">#{{ user_info.user_id }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Member Since:</span>
+                    <span class="info-value">{{ user_info.created_at.strftime('%B %Y') if user_info.created_at else 'N/A' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Last Login:</span>
+                    <span class="info-value">{{ user_info.last_login.strftime('%B %d, %Y at %I:%M %p') if user_info.last_login else 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-chart-bar"></i>
+                Usage Statistics
+            </h4>
+        </div>
+        <div class="panel-content">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number" id="total-scans-display">{{ user_stats.total_scans if user_stats else 0 }}</div>
+                    <div class="stat-label">Total Scans</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="completed-scans-display">{{ user_stats.completed_scans if user_stats else 0 }}</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="failed-scans-display">{{ user_stats.failed_scans if user_stats else 0 }}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="last-scan-date">{{ user_stats.last_scan_date if user_stats and user_stats.last_scan_date else 'N/A' }}</div>
+                    <div class="stat-label">Last Scan</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Tips Section -->
+<div class="advanced-tips-section animate-fade-up" style="animation-delay: 0.8s;">
+    <div class="tips-container">
+        <h3>
+            <i class="fas fa-lightbulb"></i>
+            Settings Tips & Best Practices
+        </h3>
+        <div class="tips-grid">
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="fas fa-shield-virus"></i>
+                </div>
+                <h5>VirusTotal API</h5>
+                <p>Using your own API key increases scan limits and provides faster results with enhanced threat detection capabilities.</p>
+            </div>
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h5>Scan History</h5>
+                <p>Regular cleanup helps maintain optimal performance and reduces storage usage while keeping important results accessible.</p>
+            </div>
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="fas fa-palette"></i>
+                </div>
+                <h5>Theme Selection</h5>
+                <p>Choose the theme that best suits your environment. Auto theme adapts to your system preferences automatically.</p>
+            </div>
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h5>Timeout Settings</h5>
+                <p>Adjust scan timeouts based on your network speed and the depth of analysis required for your security assessments.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Notice -->
+<div class="security-notice animate-fade-up" style="animation-delay: 0.9s;">
+    <div class="notice-content">
+        <div class="notice-icon">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        <div class="notice-text">
+            <h4>Security & Privacy</h4>
+            <p>Your settings and API keys are encrypted and stored securely. We never share your personal information or API credentials with third parties.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %} 

@@ -1,0 +1,769 @@
+{% extends "base.html" %}
+
+{% block title %}VirusTotal Scanner - SANA Toolkit{% endblock %}
+
+{% block page_icon %}<i class="fas fa-shield-virus"></i>{% endblock %}
+{% block page_title %}VirusTotal Threat Scanner{% endblock %}
+{% block page_subtitle %}Advanced Malware Detection & URL Analysis with 70+ Antivirus Engines{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/virustotal.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Security Stats -->
+<div class="hero-scanner-section animate-fade-up">
+    <div class="hero-background"></div>
+    <div class="hero-content">
+        <div class="hero-text">
+            <h1 class="hero-title gradient-text">VirusTotal Threat Intelligence</h1>
+            <p class="hero-subtitle">Analyze files, URLs, domains and IP addresses with 70+ antivirus engines and advanced threat detection capabilities</p>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.1s;">
+                <div class="stat-value" id="total-analyses">0</div>
+                <div class="stat-label">Total Scans</div>
+            </div>
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.2s;">
+                <div class="stat-value" id="threats-detected">0</div>
+                <div class="stat-label">Threats Found</div>
+            </div>
+            <div class="stat-bubble animate-fade-scale" style="animation-delay: 0.3s;">
+                <div class="stat-value" id="engines-active">70+</div>
+                <div class="stat-label">AV Engines</div>
+            </div>
+
+        </div>
+        <div class="hero-actions">
+            <button type="button" class="btn btn-hero-primary hover-lift" id="focus-analyzer-btn">
+                <i class="fas fa-shield-virus"></i>
+                Start Analysis
+            </button>
+            <button class="btn btn-hero-secondary hover-lift" id="quick-hash-btn">
+                <i class="fas fa-hashtag"></i>
+                Quick Hash Check
+            </button>
+            <a href="#examples" class="btn btn-hero-outline hover-lift">
+                <i class="fas fa-question-circle"></i>
+                View Examples
+            </a>
+        </div>
+    </div>
+    <div class="scanning-visualization">
+        <div class="vt-symbol">
+            <div class="symbol-container">
+                <i class="fas fa-shield-virus"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Configuration Panel -->
+<div class="analysis-config-panel animate-fade-up" style="animation-delay: 0.4s;">
+    <div class="panel-header">
+        <div class="panel-title">
+            <i class="fas fa-search-location"></i>
+            <h3>Threat Analysis Configuration</h3>
+        </div>
+        <div class="analysis-progress-info">
+            <div class="progress-item" data-tooltip="Current analysis status">
+                <i class="fas fa-shield-check"></i>
+                <span id="analysis-status">Ready</span>
+            </div>
+            <div class="progress-item" data-tooltip="Analysis duration">
+                <i class="fas fa-clock"></i>
+                <span id="analysis-time">0:00</span>
+            </div>
+            <div class="progress-item" data-tooltip="Threats detected">
+                <i class="fas fa-virus"></i>
+                <span id="threats-found">0 Threats</span>
+            </div>
+            <div class="progress-item" data-tooltip="Engines progress">
+                <i class="fas fa-microscope"></i>
+                <span id="engines-scanned">0/70+ Engines</span>
+            </div>
+        </div>
+    </div>
+
+    <form id="analysis-form" class="enhanced-form">
+        <!-- Resource Input Section -->
+        <div class="form-section animate-fade-up" style="animation-delay: 0.5s;">
+            <div class="section-header">
+                <i class="fas fa-crosshairs"></i>
+                <h4>Resource to Analyze</h4>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="resource" class="form-label">
+                        <i class="fas fa-search"></i>
+                        Hash, URL, Domain, or IP Address
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" 
+                               id="resource" 
+                               class="form-control enhanced-input" 
+                               placeholder="Enter URL, domain, IP, or hash" 
+                               required
+                               autocomplete="off"
+                               spellcheck="false">
+                        <div class="input-validation"></div>
+                    </div>
+                    <div class="validation-message" id="validation-message" style="display: none;"></div>
+                    <div class="input-suggestions" id="resource-suggestions"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="analysis-type" class="form-label">
+                        <i class="fas fa-tags"></i>
+                        Analysis Type
+                    </label>
+                    <select id="analysis-type" class="form-control enhanced-select">
+                        <option value="auto">Auto-detect</option>
+                        <option value="hash">File Hash</option>
+                        <option value="url">URL</option>
+                        <option value="domain">Domain</option>
+                        <option value="ip">IP Address</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Options -->
+        <div class="form-section animate-fade-up" style="animation-delay: 0.6s;">
+            <div class="section-header">
+                <i class="fas fa-sliders-h"></i>
+                <h4>Analysis Options</h4>
+            </div>
+            
+            <div class="analysis-options">
+                <div class="option-card active hover-lift gpu-accelerated" data-option="auto" tabindex="0" role="button" aria-pressed="true">
+                    <div class="option-icon">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <div class="option-info">
+                        <h5>Auto-detected Analysis</h5>
+                        <p>Automatically detects resource type and applies optimal analysis method for comprehensive threat detection</p>
+                    </div>
+                    <div class="option-stats">
+                        <div class="stat">Speed: <strong>★★★</strong></div>
+                        <div class="stat">Detection: <strong>★★★</strong></div>
+                    </div>
+                </div>
+            </div>
+            
+            <input type="hidden" id="analysis-option" value="auto">
+        </div>
+
+        <!-- Launch Section -->
+        <div class="launch-section animate-fade-up" style="animation-delay: 0.7s;">
+            <button type="submit" class="btn btn-analysis-launch gpu-accelerated" id="analysis-btn">
+                <div class="btn-content">
+                    <i class="fas fa-shield-virus launch-icon"></i>
+                    <span class="btn-text">Start Threat Analysis</span>
+                </div>
+                <div class="btn-effects">
+                    <div class="ripple"></div>
+                    <div class="glow"></div>
+                </div>
+            </button>
+            <div class="launch-info">
+                <p>Resource validation: <span id="resource-validation" class="status-pending">Pending</span></p>
+                <p>Analysis engines: <span id="engines-info">70+ Ready</span></p>
+                <p>Estimated time: <span id="estimated-time">~30 seconds</span></p>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Analysis Status with Real-time Progress -->
+<div id="analysis-status-panel" class="analysis-status-panel animate-fade-up" style="display: none;">
+    <div class="status-header">
+        <h3>
+            <i class="fas fa-shield-virus"></i> 
+            Threat Analysis in Progress
+        </h3>
+        <button class="btn btn-outline btn-sm hover-lift" id="cancel-analysis" data-tooltip="Cancel current analysis">
+            <i class="fas fa-stop"></i> Cancel
+        </button>
+    </div>
+    
+    <div class="analysis-visualization">
+        <div class="threat-scanner">
+            <div class="scanner-background">
+                <div class="detection-grid" id="detection-grid">
+                    <!-- Dynamic detection points will be added here -->
+                </div>
+            </div>
+            <div class="scanner-sweep"></div>
+        </div>
+        
+        <div class="analysis-details">
+            <div class="analysis-phase">
+                <h4>Current Phase:</h4>
+                <p id="current-phase">Initializing Analysis</p>
+            </div>
+            <div class="analysis-stats-live">
+                <div class="live-stat" data-tooltip="Engines that have completed scanning">
+                    <span class="stat-label">Engines Scanned:</span>
+                    <span class="stat-value" id="live-engines">0</span>
+                </div>
+                <div class="live-stat" data-tooltip="Potential threats identified">
+                    <span class="stat-label">Threats Found:</span>
+                    <span class="stat-value" id="live-threats">0</span>
+                </div>
+                <div class="live-stat" data-tooltip="Overall analysis progress">
+                    <span class="stat-label">Progress:</span>
+                    <span class="stat-value" id="live-progress">0%</span>
+                </div>
+                <div class="live-stat" data-tooltip="Analysis speed and efficiency">
+                    <span class="stat-label">Performance:</span>
+                    <span class="stat-value" id="live-performance">Optimal</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="progress-section">
+        <div class="progress-bar-container">
+            <h5>Analysis Progress</h5>
+            <div class="progress-bar" id="analysis-progress">
+                <div class="progress-fill"></div>
+                <div class="progress-text">0%</div>
+            </div>
+        </div>
+        <div class="analysis-log">
+            <div class="log-header">
+                <h5>
+                    <i class="fas fa-terminal"></i>
+                    Analysis Log
+                </h5>
+                <button class="btn btn-xs hover-lift" id="clear-log" data-tooltip="Clear log entries">
+                    <i class="fas fa-trash"></i>
+                    Clear
+                </button>
+            </div>
+            <div class="log-content" id="analysis-log">
+                <div class="log-entry info">
+                    <span class="timestamp">[00:00:01]</span>
+                    <span class="message">Initializing VirusTotal analysis engine...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Results Section -->
+<div id="results-section" class="results-panel animate-fade-up" style="display: none;">
+    <div class="results-header">
+        <div class="results-title">
+            <h3>
+                <i class="fas fa-chart-pie"></i> 
+                Threat Analysis Results
+            </h3>
+            <div class="analysis-summary">
+                <span class="summary-item" data-tooltip="Total detections found">
+                    <i class="fas fa-shield-virus"></i>
+                    <strong id="total-detections">0</strong> Detections
+                </span>
+                <span class="summary-item" data-tooltip="Antivirus engines used">
+                    <i class="fas fa-microscope"></i>
+                    <strong id="total-engines">0</strong> Engines
+                </span>
+                <span class="summary-item" data-tooltip="Analysis completion date">
+                    <i class="fas fa-clock"></i>
+                    <strong id="scan-date">Unknown</strong>
+                </span>
+                <span class="summary-item" data-tooltip="Analysis duration">
+                    <i class="fas fa-stopwatch"></i>
+                    <strong id="analysis-duration">0:00</strong>
+                </span>
+            </div>
+        </div>
+        
+        <div class="results-actions">
+            <div class="view-options">
+                <button class="view-btn active" data-view="overview" data-tooltip="Overview of results">
+                    <i class="fas fa-eye"></i> Overview
+                </button>
+                <button class="view-btn" data-view="detections" data-tooltip="Detailed detection results">
+                    <i class="fas fa-bug"></i> Detections
+                </button>
+            </div>
+            
+            <div class="export-options">
+                <div class="dropdown">
+                    <button class="btn btn-outline dropdown-toggle hover-lift" data-tooltip="Export results">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <div class="dropdown-menu">
+                        <button id="export-json" class="dropdown-item" disabled>
+                            <i class="fas fa-file-code"></i> JSON Report
+                        </button>
+                        <button id="export-csv" class="dropdown-item" disabled>
+                            <i class="fas fa-file-csv"></i> CSV Data
+                        </button>
+                        <button id="copy-results" class="dropdown-item" disabled>
+                            <i class="fas fa-copy"></i> Copy Results
+                        </button>
+                        <button id="share-results" class="dropdown-item" disabled>
+                            <i class="fas fa-share"></i> Share Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Threat Overview -->
+    <div class="threat-overview" id="threat-overview">
+        <div class="threat-score-card animate-fade-scale">
+            <div class="threat-score" id="threat-score">
+                <div class="score-value">0</div>
+                <div class="score-label">Threat Score</div>
+            </div>
+            <div class="reputation-badge unknown" id="reputation-badge">
+                <i class="fas fa-question-circle"></i>
+                <span>Unknown</span>
+            </div>
+        </div>
+        
+        <div class="detection-breakdown animate-fade-scale" style="animation-delay: 0.2s;">
+            <h5>
+                <i class="fas fa-chart-donut"></i>
+                Detection Breakdown
+            </h5>
+            <div class="breakdown-chart" id="breakdown-chart"></div>
+            <div class="breakdown-legend">
+                <div class="legend-item">
+                    <span class="legend-color malicious"></span>
+                    <span>Malicious (<span id="malicious-count">0</span>)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color suspicious"></span>
+                    <span>Suspicious (<span id="suspicious-count">0</span>)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color clean"></span>
+                    <span>Clean (<span id="clean-count">0</span>)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Content -->
+    <div class="results-content">
+        <div id="overview-view" class="results-view active">
+            <div id="resource-info" class="resource-info animate-fade-up">
+                <!-- Dynamic resource information will be inserted here -->
+            </div>
+        </div>
+        
+        <div id="detections-view" class="results-view">
+            <div id="detection-results" class="detection-results animate-fade-up">
+                <h4>
+                    <i class="fas fa-list-alt"></i>
+                    Detection Results by Engine
+                </h4>
+                <div class="table-responsive">
+                    <table class="detection-table" id="detection-table">
+                        <thead>
+                            <tr>
+                                <th>Antivirus Engine</th>
+                                <th>Detection Result</th>
+                                <th>Category</th>
+                                <th>Method</th>
+                                <th>Version</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detection-table-body">
+                            <!-- Dynamic detection results will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="results-footer">
+        <button class="btn btn-primary hover-lift" id="new-analysis-btn">
+            <i class="fas fa-redo"></i> New Analysis
+        </button>
+        <button class="btn btn-secondary hover-lift" id="rescan-btn" style="display: none;">
+            <i class="fas fa-sync"></i> Rescan Resource
+        </button>
+        <button class="btn btn-outline hover-lift" id="save-results-btn">
+            <i class="fas fa-save"></i> Save Results
+        </button>
+    </div>
+</div>
+
+<!-- Examples and Documentation -->
+<div class="info-panels animate-fade-up" id="examples" style="animation-delay: 0.8s;">
+    <div class="examples-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-lightbulb"></i> 
+                Examples & Tips
+            </h4>
+        </div>
+        <div class="examples-content">
+            <div class="example-carousel">
+                <div class="example-slide active">
+                    <div class="example-icon">
+                        <i class="fas fa-hashtag"></i>
+                    </div>
+                    <h5>File Hash Analysis</h5>
+                    <p>Enter MD5, SHA1, or SHA256 hashes to check file reputation against threat databases</p>
+                    <code>d41d8cd98f00b204e9800998ecf8427e</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <h5>URL Scanning</h5>
+                    <p>Scan websites and URLs for malicious content, phishing attempts, and security threats</p>
+                    <code>https://example.com/suspicious-page</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <h5>Domain & IP Analysis</h5>
+                    <p>Check domain and IP reputation for comprehensive threat intelligence and geolocation data</p>
+                    <code>suspicious-domain.com</code>
+                </div>
+                <div class="example-slide">
+                    <div class="example-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h5>Comprehensive Scanning</h5>
+                    <p>Leverage 70+ antivirus engines and threat intelligence sources for maximum detection coverage</p>
+                    <code>Multiple detection engines</code>
+                </div>
+            </div>
+            <div class="example-navigation">
+                <button class="example-nav prev" data-tooltip="Previous example">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="example-dots">
+                    <span class="dot active"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+                <button class="example-nav next" data-tooltip="Next example">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="reference-panel">
+        <div class="panel-header">
+            <h4>
+                <i class="fas fa-book"></i> 
+                Quick Reference
+            </h4>
+        </div>
+        <div class="reference-content">
+            <div class="reference-section">
+                <h5>Supported Hash Types</h5>
+                <ul>
+                    <li>
+                        <span>MD5 Hash</span>
+                        <code>MD5</code>
+                    </li>
+                    <li>
+                        <span>SHA1 Hash</span>
+                        <code>SHA1</code>
+                    </li>
+                    <li>
+                        <span>SHA256 Hash</span>
+                        <code>SHA256</code>
+                    </li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Resource Formats</h5>
+                <ul>
+                    <li>
+                        <span>Website URL</span>
+                        <code>URL</code>
+                    </li>
+                    <li>
+                        <span>Domain Name</span>
+                        <code>Domain</code>
+                    </li>
+                    <li>
+                        <span>IP Address</span>
+                        <code>IPv4</code>
+                    </li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Threat Levels</h5>
+                <ul>
+                    <li>
+                        <span>No threats detected</span>
+                        <code>Clean</code>
+                    </li>
+                    <li>
+                        <span>Potentially unwanted</span>
+                        <code>Suspicious</code>
+                    </li>
+                    <li>
+                        <span>Confirmed malware</span>
+                        <code>Malicious</code>
+                    </li>
+                </ul>
+            </div>
+            <div class="reference-section">
+                <h5>Example Resources</h5>
+                <ul>
+                    <li>
+                        <span>google.com</span>
+                        <code>Safe</code>
+                    </li>
+                    <li>
+                        <span>8.8.8.8</span>
+                        <code>DNS</code>
+                    </li>
+                    <li>
+                        <span>Test Hash</span>
+                        <code>Sample</code>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Analysis Tips -->
+<div class="advanced-tips-section animate-fade-up" style="animation-delay: 0.9s;">
+    <div class="tips-container">
+        <h3>
+            <i class="fas fa-graduation-cap"></i> 
+            Advanced Analysis Tips
+        </h3>
+        <div class="tips-grid">
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h5>Hash Analysis Best Practices</h5>
+                <p>File hashes provide instant reputation checks without uploading sensitive files. They're faster, more private, and work with any file size.</p>
+                <ul>
+                    <li>Faster than file uploads</li>
+                    <li>Privacy-preserving analysis</li>
+                    <li>Works with large files</li>
+                    <li>Historical threat data</li>
+                </ul>
+            </div>
+            
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <h5>URL Security Scanning</h5>
+                <p>Submit suspicious URLs for comprehensive analysis including malware detection, phishing identification, and behavioral analysis of web content.</p>
+                <ul>
+                    <li>Real-time web page analysis</li>
+                    <li>Phishing detection algorithms</li>
+                    <li>Malicious script identification</li>
+                    <li>SSL certificate validation</li>
+                </ul>
+            </div>
+            
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-network-wired"></i>
+                </div>
+                <h5>Network Intelligence</h5>
+                <p>Analyze domains and IP addresses for comprehensive threat intelligence including WHOIS data, DNS records, and geolocation information.</p>
+                <ul>
+                    <li>WHOIS information lookup</li>
+                    <li>DNS record analysis</li>
+                    <li>Geolocation and ASN data</li>
+                    <li>Historical domain data</li>
+                </ul>
+            </div>
+            
+            <div class="tip-card hover-lift">
+                <div class="tip-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h5>Interpreting Results</h5>
+                <p>Understand detection results from 70+ engines. Higher detection ratios indicate higher threat probability, but consider false positives and engine reliability.</p>
+                <ul>
+                    <li>Check detection consistency</li>
+                    <li>Review engine reputation</li>
+                    <li>Consider false positive rates</li>
+                    <li>Analyze threat categories</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Notice -->
+<div class="security-notice animate-fade-up" style="animation-delay: 1s;">
+    <div class="notice-container">
+        <div class="notice-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="notice-content">
+            <h4>Security & Privacy Notice</h4>
+            <p>This tool is provided for legitimate security research and analysis purposes. Please ensure you have proper authorization before analyzing any resources you don't own or lack permission to investigate. All analysis is performed through the official VirusTotal API and follows their terms of service and privacy policies.</p>
+            <div class="notice-points">
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>Only analyze resources you own or have permission to investigate</span>
+                </div>
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>Results are provided by VirusTotal's comprehensive threat intelligence network</span>
+                </div>
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>No files are stored locally - all analysis is done via secure APIs</span>
+                </div>
+                <div class="notice-point">
+                    <i class="fas fa-check"></i>
+                    <span>Respect intellectual property and privacy rights in your analysis</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Help Button -->
+<div class="floating-help" data-tooltip=>
+    <button class="help-btn" id="floating-help" aria-label="Get help">
+        <i class="fas fa-question"></i>
+    </button>
+    <div class="help-tooltip">
+        <p>Need help? Click for VirusTotal analysis guides, API documentation, and troubleshooting assistance.</p>
+    </div>
+</div>
+
+<!-- Loading States (Hidden by default) -->
+<div class="loading-states" style="display: none;">
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-text"></div>
+    <div class="skeleton skeleton-text small"></div>
+    <div class="skeleton skeleton-avatar"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/virustotal.js') }}"></script>
+<script>
+// Additional initialization and performance optimizations
+document.addEventListener('DOMContentLoaded', function() {
+    // Progressive enhancement for better performance
+    if ('IntersectionObserver' in window) {
+        // Lazy load non-critical animations
+        const animationObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-fade-up');
+                    animationObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        // Observe elements for animation
+        document.querySelectorAll('.tip-card, .reference-section').forEach(el => {
+            animationObserver.observe(el);
+        });
+    }
+
+    // Enhanced accessibility
+    document.querySelectorAll('[data-tooltip]').forEach(element => {
+        element.setAttribute('aria-label', element.dataset.tooltip);
+    });
+
+    // Keyboard navigation for option cards
+    document.querySelectorAll('.option-card').forEach(card => {
+        card.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                card.click();
+            }
+        });
+    });
+
+    // Auto-focus on resource input when page loads
+
+
+    // Enhanced error handling
+    window.addEventListener('error', function(e) {
+        console.error('VirusTotal Scanner Error:', e.error);
+        if (window.virusTotalScanner) {
+            window.virusTotalScanner.showEnhancedNotification(
+                'An unexpected error occurred. Please refresh the page and try again.',
+                'error'
+            );
+        }
+    });
+
+    // Performance monitoring
+    if ('performance' in window && 'observe' in window.PerformanceObserver.prototype) {
+        const perfObserver = new PerformanceObserver((entries) => {
+            entries.getEntries().forEach(entry => {
+                if (entry.entryType === 'navigation') {
+                    console.log('Page Load Performance:', {
+                        domContentLoaded: entry.domContentLoadedEventEnd - entry.domContentLoadedEventStart,
+                        loadComplete: entry.loadEventEnd - entry.loadEventStart
+                    });
+                }
+            });
+        });
+        perfObserver.observe({ entryTypes: ['navigation'] });
+    }
+});
+
+// Add this function to fetch real dashboard stats
+async function loadRealDashboardStats() {
+    try {
+        const response = await fetch('/virustotal-dashboard-stats');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const stats = data.stats;
+            
+            // Update the stat bubbles with real data
+            document.getElementById('total-analyses').textContent = stats.total_analyses;
+            document.getElementById('threats-detected').textContent = stats.threats_detected;
+            document.getElementById('engines-active').textContent = stats.engines_available + '+';
+            
+            // You can also add additional stats
+            if (document.getElementById('api-usage')) {
+                document.getElementById('api-usage').textContent = stats.api_requests_used;
+            }
+            
+            console.log('Dashboard stats updated with real data:', stats);
+        } else {
+            console.error('Failed to load dashboard stats:', data.message);
+            // Keep existing mock data as fallback
+        }
+    } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+        // Keep existing mock data as fallback
+    }
+}
+
+// Call this when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Load real stats immediately
+    loadRealDashboardStats();
+    
+    // Update stats every 5 minutes
+    setInterval(loadRealDashboardStats, 5 * 60 * 1000);
+});
+
+
+</script>
+{% endblock %}

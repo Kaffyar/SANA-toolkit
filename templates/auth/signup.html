@@ -1,0 +1,590 @@
+{% extends "auth/auth_base.html" %}
+
+{% block title %}SANA Toolkit - Create Account{% endblock %}
+
+{% block auth_content %}
+<div class="auth-form-wrapper">
+    <!-- Form Header -->
+    <div class="form-header">
+        <div class="form-title">
+            <h2><i class="fas fa-user-plus"></i> Create Account</h2>
+            <p class="form-subtitle">Join SANA Toolkit for advanced cybersecurity assessment</p>
+        </div>
+    </div>
+
+    <!-- Signup Form -->
+    <form id="signup-form" class="auth-form" novalidate>
+        <div class="form-group">
+            <label for="signup-email" class="form-label">
+                <i class="fas fa-envelope"></i>
+                Email Address
+            </label>
+            <div class="input-wrapper">
+                <input 
+                    type="email" 
+                    id="signup-email" 
+                    name="email" 
+                    class="form-control auth-input" 
+                    placeholder="Enter your email address"
+                    autocomplete="email"
+                    required
+                >
+                <div class="input-validation" id="email-validation"></div>
+            </div>
+            <div class="input-feedback" id="email-feedback"></div>
+            <div class="input-help">
+                <i class="fas fa-info-circle"></i>
+                We'll send a verification code to this email
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="signup-password" class="form-label">
+                <i class="fas fa-lock"></i>
+                Password
+            </label>
+            <div class="input-wrapper">
+                <input 
+                    type="password" 
+                    id="signup-password" 
+                    name="password" 
+                    class="form-control auth-input" 
+                    placeholder="Create a strong password"
+                    autocomplete="new-password"
+                    required
+                >
+                <button type="button" class="password-toggle" id="password-toggle">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <div class="input-validation" id="password-validation"></div>
+            </div>
+            <div class="input-feedback" id="password-feedback"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="signup-confirm-password" class="form-label">
+                <i class="fas fa-check-double"></i>
+                Confirm Password
+            </label>
+            <div class="input-wrapper">
+                <input 
+                    type="password" 
+                    id="signup-confirm-password" 
+                    name="confirm_password" 
+                    class="form-control auth-input" 
+                    placeholder="Confirm your password"
+                    autocomplete="new-password"
+                    required
+                >
+                <button type="button" class="password-toggle" id="confirm-password-toggle">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <div class="input-validation" id="confirm-password-validation"></div>
+            </div>
+            <div class="input-feedback" id="confirm-password-feedback"></div>
+        </div>
+
+        <!-- Password Requirements Checker -->
+        <div class="password-requirements-live">
+            <div class="requirements-title">
+                <i class="fas fa-list-check"></i>
+                <span>Password Requirements</span>
+            </div>
+            <div class="requirements-checklist">
+                <div class="requirement-check" data-requirement="length">
+                    <i class="fas fa-circle-xmark"></i>
+                    <span>At least 8 characters</span>
+                </div>
+                <div class="requirement-check" data-requirement="uppercase">
+                    <i class="fas fa-circle-xmark"></i>
+                    <span>One uppercase letter</span>
+                </div>
+                <div class="requirement-check" data-requirement="lowercase">
+                    <i class="fas fa-circle-xmark"></i>
+                    <span>One lowercase letter</span>
+                </div>
+                <div class="requirement-check" data-requirement="digit">
+                    <i class="fas fa-circle-xmark"></i>
+                    <span>One number</span>
+                </div>
+                <div class="requirement-check" data-requirement="special">
+                    <i class="fas fa-circle-xmark"></i>
+                    <span>One special character</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-auth" id="signup-btn">
+                <span class="btn-text">
+                    <i class="fas fa-user-plus"></i>
+                    Create Account
+                </span>
+                <span class="btn-loading" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Creating Account...
+                </span>
+            </button>
+        </div>
+    </form>
+
+    <!-- Security Requirements -->
+    <div class="security-requirements">
+        <div class="requirements-header">
+            <i class="fas fa-shield-check"></i>
+            <h4>Account Security</h4>
+        </div>
+        <div class="requirements-grid">
+            <div class="requirement-item">
+                <i class="fas fa-envelope-circle-check"></i>
+                <div class="requirement-content">
+                    <h5>Email Verification</h5>
+                    <p>Verify your email with a secure code</p>
+                </div>
+            </div>
+            <div class="requirement-item">
+                <i class="fas fa-key"></i>
+                <div class="requirement-content">
+                    <h5>Strong Password</h5>
+                    <p>Set a secure password during verification</p>
+                </div>
+            </div>
+            <div class="requirement-item">
+                <i class="fas fa-user-shield"></i>
+                <div class="requirement-content">
+                    <h5>Account Protection</h5>
+                    <p>Automatic lockout after failed attempts</p>
+                </div>
+            </div>
+            <div class="requirement-item">
+                <i class="fas fa-clock"></i>
+                <div class="requirement-content">
+                    <h5>Quick Setup</h5>
+                    <p>Complete registration in under 2 minutes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Requirements Preview -->
+    <div class="password-requirements">
+        <div class="requirements-header">
+            <i class="fas fa-lock"></i>
+            <h4>Password Requirements</h4>
+        </div>
+        <div class="requirements-list">
+            <div class="requirement-rule">
+                <i class="fas fa-check-circle"></i>
+                <span>At least 8 characters long</span>
+            </div>
+            <div class="requirement-rule">
+                <i class="fas fa-check-circle"></i>
+                <span>Contains uppercase letter (A-Z)</span>
+            </div>
+            <div class="requirement-rule">
+                <i class="fas fa-check-circle"></i>
+                <span>Contains lowercase letter (a-z)</span>
+            </div>
+            <div class="requirement-rule">
+                <i class="fas fa-check-circle"></i>
+                <span>Contains at least one digit (0-9)</span>
+            </div>
+            <div class="requirement-rule">
+                <i class="fas fa-check-circle"></i>
+                <span>Contains special character (!@#$%^&*)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Divider -->
+    <div class="auth-divider">
+        <div class="divider-line"></div>
+        <span class="divider-text">Already have an account?</span>
+        <div class="divider-line"></div>
+    </div>
+
+    <!-- Login Link -->
+    <div class="auth-alternative">
+        <p>Ready to access your toolkit?</p>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-auth">
+            <i class="fas fa-sign-in-alt"></i>
+            Sign In
+        </a>
+    </div>
+
+    <!-- Terms Notice -->
+    <div class="terms-notice">
+        <div class="notice-content">
+            <p>By creating an account, you agree to our 
+                <a href="#" class="terms-link">Terms of Service</a> and 
+                <a href="#" class="terms-link">Privacy Policy</a>.
+            </p>
+        </div>
+    </div>
+
+    <!-- Features Preview -->
+    <div class="features-preview">
+        <div class="preview-header">
+            <i class="fas fa-rocket"></i>
+            <h4>What you'll get with SANA Toolkit</h4>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-network-wired"></i>
+                </div>
+                <div class="feature-content">
+                    <h5>Network Scanning</h5>
+                    <p>Advanced Nmap integration for comprehensive network discovery</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-virus"></i>
+                </div>
+                <div class="feature-content">
+                    <h5>Malware Analysis</h5>
+                    <p>VirusTotal integration with 70+ antivirus engines</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="feature-content">
+                    <h5>Host Discovery</h5>
+                    <p>Identify active hosts across your network infrastructure</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="feature-content">
+                    <h5>Scan History</h5>
+                    <p>Track and analyze your security assessments over time</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('signup-form');
+    const emailInput = document.getElementById('signup-email');
+    const signupBtn = document.getElementById('signup-btn');
+    const emailValidation = document.getElementById('email-validation');
+    const emailFeedback = document.getElementById('email-feedback');
+    const passwordInput = document.getElementById('signup-password');
+    const passwordValidation = document.getElementById('password-validation');
+    const passwordFeedback = document.getElementById('password-feedback');
+    const confirmPasswordInput = document.getElementById('signup-confirm-password');
+    const confirmPasswordValidation = document.getElementById('confirm-password-validation');
+    const confirmPasswordFeedback = document.getElementById('confirm-password-feedback');
+
+    // Email validation
+    function validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    function showInputValidation(input, validationElement, isValid, message = '') {
+        const wrapper = input.closest('.input-wrapper');
+        
+        if (isValid) {
+            wrapper.classList.remove('error');
+            wrapper.classList.add('valid');
+            validationElement.innerHTML = '<i class="fas fa-check"></i>';
+            validationElement.className = 'input-validation valid';
+        } else {
+            wrapper.classList.remove('valid');
+            wrapper.classList.add('error');
+            validationElement.innerHTML = '<i class="fas fa-times"></i>';
+            validationElement.className = 'input-validation invalid';
+        }
+    }
+
+    function showFeedback(element, message, type = 'error') {
+        element.textContent = message;
+        element.className = `input-feedback ${type}`;
+        element.style.display = message ? 'block' : 'none';
+    }
+
+    // Real-time email validation
+    emailInput.addEventListener('input', function() {
+        const email = this.value.trim();
+        const isValid = email && validateEmail(email);
+        
+        showInputValidation(this, emailValidation, isValid);
+        
+        if (email && !isValid) {
+            showFeedback(emailFeedback, 'Please enter a valid email address');
+        } else {
+            showFeedback(emailFeedback, '');
+        }
+    });
+
+    // Function to check password requirements
+    function checkPasswordRequirements(password) {
+        return {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            digit: /\d/.test(password),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
+    }
+
+    // Function to update password requirements UI
+    function updatePasswordRequirements(password) {
+        const requirements = checkPasswordRequirements(password);
+        
+        // Update each requirement item in the checklist
+        Object.keys(requirements).forEach(req => {
+            const element = document.querySelector(`.requirement-check[data-requirement="${req}"]`);
+            if (element) {
+                const icon = element.querySelector('i');
+                if (requirements[req]) {
+                    element.classList.add('met');
+                    icon.className = 'fas fa-check-circle';
+                    icon.style.color = '#4CAF50'; // Green color
+                } else {
+                    element.classList.remove('met');
+                    icon.className = 'fas fa-circle-xmark';
+                    icon.style.color = '#FF5252'; // Red color
+                }
+            }
+        });
+        
+        return Object.values(requirements).every(Boolean);
+    }
+
+    // Enhanced email domain suggestions
+    function suggestEmailDomains(email) {
+        const commonDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
+        const atIndex = email.indexOf('@');
+        
+        if (atIndex > 0) {
+            const domain = email.substring(atIndex + 1);
+            const suggestions = commonDomains.filter(d => 
+                d.startsWith(domain.toLowerCase()) && d !== domain.toLowerCase()
+            );
+            
+            if (suggestions.length > 0 && domain.length > 1) {
+                showFeedback(emailFeedback, `Did you mean: ${email.substring(0, atIndex + 1)}${suggestions[0]}?`, 'info');
+            }
+        }
+    }
+
+    // Email domain suggestion on blur
+    emailInput.addEventListener('blur', function() {
+        const email = this.value.trim();
+        if (email && !validateEmail(email)) {
+            suggestEmailDomains(email);
+        }
+    });
+
+    // Password input listeners
+    passwordInput.addEventListener('input', function() {
+        const password = this.value.trim();
+        const isValid = password && updatePasswordRequirements(password);
+        
+        showInputValidation(this, passwordValidation, isValid);
+        
+        if (password && !isValid) {
+            showFeedback(passwordFeedback, 'Password does not meet all requirements');
+        } else {
+            showFeedback(passwordFeedback, '');
+        }
+        
+        // Also update confirm password validation if it has a value
+        if (confirmPasswordInput.value.trim()) {
+            const confirmMatch = confirmPasswordInput.value.trim() === password;
+            showInputValidation(confirmPasswordInput, confirmPasswordValidation, confirmMatch);
+            
+            if (!confirmMatch) {
+                showFeedback(confirmPasswordFeedback, 'Passwords do not match');
+            } else {
+                showFeedback(confirmPasswordFeedback, '');
+            }
+        }
+    });
+
+    confirmPasswordInput.addEventListener('input', function() {
+        const confirmPassword = this.value.trim();
+        const password = passwordInput.value.trim();
+        const isValid = confirmPassword && confirmPassword === password;
+        
+        showInputValidation(this, confirmPasswordValidation, isValid);
+        
+        if (confirmPassword && !isValid) {
+            showFeedback(confirmPasswordFeedback, 'Passwords do not match');
+        } else {
+            showFeedback(confirmPasswordFeedback, '');
+        }
+    });
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (this.state && this.state.isSubmitting) return;
+        
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
+        const confirmPassword = confirmPasswordInput.value.trim();
+        
+        // Validate email
+        if (!email) {
+            showFeedback(emailFeedback, 'Email address is required');
+            emailInput.focus();
+            return;
+        }
+        
+        if (!validateEmail(email)) {
+            showFeedback(emailFeedback, 'Please enter a valid email address');
+            emailInput.focus();
+            return;
+        }
+        
+        // Validate password
+        if (!password) {
+            showFeedback(passwordFeedback, 'Password is required');
+            passwordInput.focus();
+            return;
+        }
+        
+        const passwordReqs = checkPasswordRequirements(password);
+        if (!Object.values(passwordReqs).every(Boolean)) {
+            showFeedback(passwordFeedback, 'Password does not meet all requirements');
+            passwordInput.focus();
+            return;
+        }
+        
+        // Validate password confirmation
+        if (password !== confirmPassword) {
+            showFeedback(confirmPasswordFeedback, 'Passwords do not match');
+            confirmPasswordInput.focus();
+            return;
+        }
+
+        // Show loading state
+        signupBtn.disabled = true;
+        signupBtn.querySelector('.btn-text').style.display = 'none';
+        signupBtn.querySelector('.btn-loading').style.display = 'flex';
+        
+        try {
+            const response = await fetch('/auth/api/send-signup-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    email: email,
+                    password: password
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                // Show success notification
+                if (window.showNotification) {
+                    window.showNotification(data.message, 'success');
+                } else {
+                    alert(data.message);
+                }
+                
+                // Redirect to OTP verification
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 1500);
+                
+            } else {
+                // Show error
+                const errorMessage = data.message || 'Failed to send verification code';
+                showFeedback(emailFeedback, errorMessage);
+                
+                if (window.showNotification) {
+                    window.showNotification(errorMessage, 'error');
+                }
+                
+                // Special handling for existing user
+                if (errorMessage.includes('already exists')) {
+                    setTimeout(() => {
+                        showFeedback(emailFeedback, 'This email is already registered. Try logging in instead.', 'info');
+                    }, 2000);
+                }
+            }
+            
+        } catch (error) {
+            console.error('Signup error:', error);
+            const errorMessage = 'Network error. Please check your connection and try again.';
+            showFeedback(emailFeedback, errorMessage);
+            
+            if (window.showNotification) {
+                window.showNotification(errorMessage, 'error');
+            }
+        } finally {
+            // Reset button state
+            signupBtn.disabled = false;
+            signupBtn.querySelector('.btn-text').style.display = 'flex';
+            signupBtn.querySelector('.btn-loading').style.display = 'none';
+        }
+    });
+
+    // Auto-focus email input
+    emailInput.focus();
+
+    // Add enter key support
+    emailInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            form.dispatchEvent(new Event('submit'));
+        }
+    });
+
+    // Add form animations
+    const formWrapper = document.querySelector('.auth-form-wrapper');
+    if (formWrapper) {
+        formWrapper.classList.add('animate-fade-up');
+    }
+
+    // Enhanced input focus effects
+    const inputs = document.querySelectorAll('.auth-input');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.closest('.input-wrapper').classList.add('focused');
+        });
+        
+        input.addEventListener('blur', function() {
+            this.closest('.input-wrapper').classList.remove('focused');
+        });
+    });
+
+    // Animate feature cards on scroll
+    const observeFeatures = new IntersectionObserver((entries) => {
+        entries.forEach((entry, index) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => {
+                    entry.target.classList.add('animate-slide-up');
+                }, index * 100);
+            }
+        });
+    });
+
+    document.querySelectorAll('.feature-card').forEach(card => {
+        observeFeatures.observe(card);
+    });
+
+    // Animate requirement items
+    document.querySelectorAll('.requirement-item').forEach((item, index) => {
+        setTimeout(() => {
+            item.classList.add('animate-fade-in');
+        }, index * 150);
+    });
+});
+</script>
+{% endblock %} 
