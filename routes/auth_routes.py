@@ -260,20 +260,36 @@ def signup():
 
 @auth_bp.route('/verify-otp')
 def verify_otp_page():
-    """Display OTP verification page with session validation"""
+    """Display OTP verification page with session validation and fallback"""
     is_valid, error_msg, session_data = validate_otp_session()
     
-    if not is_valid:
-        flash(error_msg, 'error')
-        return redirect(url_for('auth.login'))
-    
-    # Get additional session data for database fallback
-    temp_user_id = session.get('temp_user_id')
-    
-    return render_template('auth/verify_otp.html', 
-                         email=session_data['email'],
-                         otp_type=session_data['otp_type'],
-                         temp_user_id=temp_user_id)
+    if is_valid:
+        # Session is valid, use session data
+        temp_user_id = session.get('temp_user_id')
+        return render_template('auth/verify_otp.html', 
+                             email=session_data['email'],
+                             otp_type=session_data['otp_type'],
+                             temp_user_id=temp_user_id)
+    else:
+        # Session is invalid, but don't redirect immediately
+        # Instead, render the page with minimal data and let frontend handle fallback
+        logger.warning(f"⚠️ Session validation failed for verify-otp page: {error_msg}")
+        
+        # Try to get email from query parameters (if user clicked email link)
+        email = request.args.get('email', '').strip()
+        otp_type = request.args.get('type', 'signup')  # Default to signup
+        
+        if email and user_manager.validate_email(email):
+            # We have a valid email, render the page
+            # The frontend will handle the database fallback
+            return render_template('auth/verify_otp.html', 
+                                 email=email,
+                                 otp_type=otp_type,
+                                 temp_user_id=None)  # Will be retrieved via database fallback
+        else:
+            # No valid email, redirect to login
+            flash('Please start the verification process from the beginning.', 'error')
+            return redirect(url_for('auth.login'))
 
 @auth_bp.route('/api/send-login-otp', methods=['POST'])
 def send_login_otp():
@@ -600,6 +616,7 @@ def verify_otp():
 @auth_bp.route('/api/verify-otp-db', methods=['POST'])
 def verify_otp_database_fallback():
     """Database-backed OTP verification fallback when sessions fail"""
+    logger.info("🔄 DEBUG: verify_otp_database_fallback function called - NEW VERSION")
     try:
         # Validate request data
         data = request.get_json()
@@ -620,17 +637,32 @@ def verify_otp_database_fallback():
         logger.info(f"🔄 Database fallback OTP verification for {email} from {client_info['ip_address']}")
         
         # Determine OTP type
-        if user_manager.user_exists(email):
+        logger.info(f"🔄 Checking if user exists for {email}")
+        user_exists = user_manager.user_exists(email)
+        logger.info(f"🔄 User exists result: {user_exists}")
+        
+        if user_exists:
+            logger.info(f"🔄 User exists, treating as login")
             otp_type = 'login'
             success, message = user_manager.verify_login_otp(email, otp_code)
         else:
+            logger.info(f"🔄 User does not exist, treating as signup")
             otp_type = 'signup'
-            # For signup, we need additional data
+            # For signup, we need temp_id - try to get from request or database
             temp_id = data.get('temp_user_id')
+            logger.info(f"🔄 temp_id from request: {temp_id}")
             
             if not temp_id:
-                logger.warning(f"⚠️ Missing temp_id for signup verification of {email}")
-                return jsonify(create_error_response('Signup verification requires temp_user_id. Please try the signup process again.')), 400
+                # Try to find temp_id from database using email
+                logger.info(f"🔄 No temp_id provided for {email}, searching database...")
+                temp_id = user_manager.find_temp_id_by_email(email)
+                logger.info(f"🔄 find_temp_id_by_email result: {temp_id}")
+                
+                if not temp_id:
+                    logger.warning(f"⚠️ No temp_id found for signup verification of {email}")
+                    return jsonify(create_error_response('Signup verification requires temp_user_id. Please try the signup process again.')), 400
+                else:
+                    logger.info(f"✅ Found temp_id {temp_id} for {email} in database")
             
             # Try to verify OTP with stored password from database
             success, message = user_manager.verify_signup_otp(temp_id, otp_code)

@@ -472,6 +472,23 @@ class UserManager:
             self.increment_login_attempts(user['user_id'])
             return False, "Invalid or expired OTP"
     
+    def find_temp_id_by_email(self, email: str) -> Optional[str]:
+        """Find temp_id for a given email from temp_registrations table"""
+        conn = self.create_connection()
+        if not conn:
+            return None
+            
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT temp_id FROM temp_registrations WHERE email = ? LIMIT 1', (email,))
+            result = cursor.fetchone()
+            return result['temp_id'] if result else None
+        except sqlite3.Error as e:
+            logger.error(f"Database error finding temp_id for {email}: {e}")
+            return None
+        finally:
+            conn.close()
+    
     def verify_signup_otp(self, temp_id: str, otp_code: str, new_password: str = None) -> Tuple[bool, str]:
         """Verify OTP for signup and create user account atomically"""
         conn = self.create_connection()

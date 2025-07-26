@@ -345,6 +345,8 @@ document.addEventListener('DOMContentLoaded', function() {
                      if (formElement && formElement.hasAttribute('data-temp-user-id')) {
                          fallbackData.temp_user_id = formElement.getAttribute('data-temp-user-id');
                          console.log('🔄 Using temp_user_id for database fallback:', fallbackData.temp_user_id);
+                     } else {
+                         console.log('🔄 No temp_user_id in form, backend will search database for email:', email);
                      }
                      
                      // Add password for signup - try to get from session or form
