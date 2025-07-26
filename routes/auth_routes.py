@@ -1040,19 +1040,29 @@ def test_session():
         session['test_key'] = test_key
         session['test_email'] = test_email
         session['test_timestamp'] = datetime.now().isoformat()
+        session['otp_email'] = test_email  # Simulate OTP email
+        session['otp_type'] = 'login'  # Simulate OTP type
+        
+        # Force session to be modified and permanent
         session.modified = True
         session.permanent = True
         
         logger.info(f"✅ Test session data set: {list(session.keys())}")
+        logger.info(f"✅ Session modified: {session.modified}")
+        logger.info(f"✅ Session permanent: {session.permanent}")
         
         return jsonify({
             'status': 'success',
             'message': 'Test session data set',
             'session_keys': list(session.keys()),
+            'session_modified': session.modified,
+            'session_permanent': session.permanent,
             'test_data': {
                 'test_key': session.get('test_key'),
                 'test_email': session.get('test_email'),
-                'test_timestamp': session.get('test_timestamp')
+                'test_timestamp': session.get('test_timestamp'),
+                'otp_email': session.get('otp_email'),
+                'otp_type': session.get('otp_type')
             }
         })
         
@@ -1062,27 +1072,33 @@ def test_session():
             'status': 'error',
             'message': str(e)
         }), 500
-    """Debug endpoint to check session state (development only)"""
-    client_info = get_client_info()
-    session_info = {
-        'session_id': session.get('_id', 'No session ID'),
-        'session_keys': list(session.keys()),
-        'otp_email': session.get('otp_email'),
-        'otp_type': session.get('otp_type'),
-        'otp_sent_at': session.get('otp_sent_at'),
-        'user_id': session.get('user_id'),
-        'authenticated': session.get('authenticated'),
-        'client_ip': client_info['ip_address'],
-        'user_agent': client_info['user_agent']
-    }
-    
-    logger.info(f"Session debug info for {client_info['ip_address']}: {session_info}")
-    
-    return jsonify({
-        'status': 'debug_info',
-        'session': session_info,
-        'timestamp': datetime.now().isoformat()
-    })
+
+@auth_bp.route('/test-session-get')
+def test_session_get():
+    """Test endpoint to retrieve session data"""
+    try:
+        logger.info(f"🔍 Testing session retrieval: {list(session.keys())}")
+        
+        return jsonify({
+            'status': 'success',
+            'session_keys': list(session.keys()),
+            'session_modified': session.modified,
+            'session_permanent': session.permanent,
+            'test_data': {
+                'test_key': session.get('test_key'),
+                'test_email': session.get('test_email'),
+                'test_timestamp': session.get('test_timestamp'),
+                'otp_email': session.get('otp_email'),
+                'otp_type': session.get('otp_type')
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Test session get error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 # Initialize database on first import with error handling
 try:

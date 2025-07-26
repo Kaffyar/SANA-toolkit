@@ -57,30 +57,36 @@ def create_app():
     # Use environment variable for secret key or generate a persistent one
     secret_key = os.environ.get('FLASK_SECRET_KEY')
     if not secret_key:
-        secret_key_file = 'secret_key.txt'
-        try:
-            with open(secret_key_file, 'r') as f:
-                secret_key = f.read().strip()
-        except FileNotFoundError:
-            # Generate a new secret key if file doesn't exist
+        # For Render, generate a secure random key if not provided
+        if os.environ.get('RENDER') == 'true':
             secret_key = secrets.token_hex(32)
-            with open(secret_key_file, 'w') as f:
-                f.write(secret_key)
-            logger.info("Generated new persistent secret key")
+            logger.info("Generated secure secret key for Render deployment")
+        else:
+            # Local development: use file-based key
+            secret_key_file = 'secret_key.txt'
+            try:
+                with open(secret_key_file, 'r') as f:
+                    secret_key = f.read().strip()
+            except FileNotFoundError:
+                # Generate a new secret key if file doesn't exist
+                secret_key = secrets.token_hex(32)
+                with open(secret_key_file, 'w') as f:
+                    f.write(secret_key)
+                logger.info("Generated new persistent secret key")
     
     app.secret_key = secret_key
     
-    # Enhanced session configuration for cloud platforms
+    # Enhanced session configuration for cloud platforms (Render-specific)
+    is_production = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
+    
     app.config.update(
-        # Use signed cookies instead of filesystem sessions for cloud compatibility
-        SESSION_TYPE='null',  # Use Flask's built-in signed cookie sessions
+        # Use Flask's built-in signed cookie sessions (no SESSION_TYPE needed)
         SESSION_PERMANENT=True,  # Make sessions permanent by default
         SESSION_USE_SIGNER=True,  # Sign session cookies for security
-        SESSION_KEY_PREFIX='sana_',  # Prefix for session keys
         PERMANENT_SESSION_LIFETIME=timedelta(hours=24),  # 24 hour session lifetime
         
-        # Enhanced cookie security settings
-        SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production',  # HTTPS only in production
+        # Enhanced cookie security settings for Render
+        SESSION_COOKIE_SECURE=is_production,  # HTTPS only in production/Render
         SESSION_COOKIE_HTTPONLY=True,  # Prevent XSS attacks
         SESSION_COOKIE_SAMESITE='Lax',  # CSRF protection
         SESSION_COOKIE_DOMAIN=None,  # Allow all domains
@@ -89,6 +95,10 @@ def create_app():
         # Additional security settings
         SESSION_REFRESH_EACH_REQUEST=True,  # Refresh session on each request
         SESSION_COOKIE_MAX_AGE=86400,  # 24 hours in seconds
+        
+        # Force session to be saved
+        SESSION_COOKIE_NAME='sana_session',
+        SESSION_COOKIE_OVERWRITE=True,
     )
     
     # Add CORS headers for cloud deployment
