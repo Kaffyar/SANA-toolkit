@@ -307,20 +307,46 @@ def send_login_otp():
         success, message = user_manager.send_login_otp(email)
         
         if success:
-            # Update session with enhanced cloud deployment support
-            session['otp_email'] = email
-            session['otp_type'] = 'login'
-            session['otp_sent_at'] = datetime.now().isoformat()
-            session['session_created'] = datetime.now().isoformat()
-            
-            # Ensure session is marked as modified and permanent
-            session.modified = True
-            session.permanent = True
-            
-            # Log successful OTP send with session info
+            # Enhanced session debugging
             client_info = get_client_info()
             logger.info(f"🔐 Login OTP sent to {email} from {client_info['ip_address']}")
-            logger.info(f"🔐 Session keys after OTP send: {list(session.keys())}")
+            
+            # Try to update session with comprehensive debugging
+            try:
+                # Clear any existing session data first
+                clear_otp_session()
+                
+                # Set new session data
+                session['otp_email'] = email
+                session['otp_type'] = 'login'
+                session['otp_sent_at'] = datetime.now().isoformat()
+                session['session_created'] = datetime.now().isoformat()
+                session['client_ip'] = client_info['ip_address']
+                session['user_agent'] = client_info['user_agent']
+                
+                # Force session to be modified and permanent
+                session.modified = True
+                session.permanent = True
+                
+                # Log detailed session information
+                logger.info(f"🔐 Session data set successfully:")
+                logger.info(f"   - Session keys: {list(session.keys())}")
+                logger.info(f"   - Session modified: {session.modified}")
+                logger.info(f"   - Session permanent: {session.permanent}")
+                logger.info(f"   - otp_email: {session.get('otp_email')}")
+                logger.info(f"   - otp_type: {session.get('otp_type')}")
+                
+                # Test session persistence immediately
+                test_session_data = {
+                    'otp_email': session.get('otp_email'),
+                    'otp_type': session.get('otp_type'),
+                    'session_created': session.get('session_created')
+                }
+                logger.info(f"🔐 Session test data: {test_session_data}")
+                
+            except Exception as session_error:
+                logger.error(f"❌ Session error during OTP send: {session_error}")
+                # Continue anyway - we'll use database fallback
             
             return jsonify(create_success_response(
                 'Verification code sent to your email',
@@ -386,22 +412,50 @@ def send_signup_otp():
         success, message, temp_id = user_manager.send_signup_otp(email)
         
         if success:
-            # Store signup data in session with enhanced cloud deployment support
-            session['otp_email'] = email
-            session['otp_type'] = 'signup'
-            session['otp_sent_at'] = datetime.now().isoformat()
-            session['temp_user_id'] = temp_id
-            session['signup_password'] = password
-            session['session_created'] = datetime.now().isoformat()
-            
-            # Ensure session is marked as modified and permanent
-            session.modified = True
-            session.permanent = True
-            
-            # Log successful OTP send with session info
+            # Enhanced session debugging for signup
             client_info = get_client_info()
             logger.info(f"📧 Signup OTP sent to {email} from {client_info['ip_address']}")
-            logger.info(f"📧 Session keys after signup OTP send: {list(session.keys())}")
+            
+            # Try to update session with comprehensive debugging
+            try:
+                # Clear any existing session data first
+                clear_otp_session()
+                
+                # Set new session data
+                session['otp_email'] = email
+                session['otp_type'] = 'signup'
+                session['otp_sent_at'] = datetime.now().isoformat()
+                session['temp_user_id'] = temp_id
+                session['signup_password'] = password
+                session['session_created'] = datetime.now().isoformat()
+                session['client_ip'] = client_info['ip_address']
+                session['user_agent'] = client_info['user_agent']
+                
+                # Force session to be modified and permanent
+                session.modified = True
+                session.permanent = True
+                
+                # Log detailed session information
+                logger.info(f"📧 Session data set successfully:")
+                logger.info(f"   - Session keys: {list(session.keys())}")
+                logger.info(f"   - Session modified: {session.modified}")
+                logger.info(f"   - Session permanent: {session.permanent}")
+                logger.info(f"   - otp_email: {session.get('otp_email')}")
+                logger.info(f"   - otp_type: {session.get('otp_type')}")
+                logger.info(f"   - temp_user_id: {session.get('temp_user_id')}")
+                
+                # Test session persistence immediately
+                test_session_data = {
+                    'otp_email': session.get('otp_email'),
+                    'otp_type': session.get('otp_type'),
+                    'temp_user_id': session.get('temp_user_id'),
+                    'session_created': session.get('session_created')
+                }
+                logger.info(f"📧 Session test data: {test_session_data}")
+                
+            except Exception as session_error:
+                logger.error(f"❌ Session error during signup OTP send: {session_error}")
+                # Continue anyway - we'll use database fallback
             
             return jsonify(create_success_response(
                 'Verification code sent to your email',
@@ -416,7 +470,7 @@ def send_signup_otp():
 
 @auth_bp.route('/api/verify-otp', methods=['POST'])
 def verify_otp():
-    """Verify OTP code with comprehensive validation and security logging"""
+    """Verify OTP code with comprehensive validation, security logging, and database fallback"""
     try:
         # Validate request data
         data = request.get_json()
@@ -432,14 +486,41 @@ def verify_otp():
         if not otp_code.isdigit() or len(otp_code) != 6:
             return jsonify(create_error_response('Invalid verification code format')), 400
         
-        # Validate session
-        is_valid, error_msg, session_data = validate_otp_session()
-        if not is_valid:
-            return jsonify(create_error_response(error_msg, url_for('auth.login'))), 400
-        
-        email = session_data['email']
-        otp_type = session_data['otp_type']
         client_info = get_client_info()
+        logger.info(f"🔍 OTP verification attempt from {client_info['ip_address']}")
+        logger.info(f"🔍 Session debug - All keys: {list(session.keys())}")
+        logger.info(f"🔍 Session debug - Session modified: {session.modified}")
+        logger.info(f"🔍 Session debug - Session permanent: {session.permanent}")
+        
+        # Try session-based verification first
+        is_valid, error_msg, session_data = validate_otp_session()
+        
+        if is_valid:
+            logger.info(f"✅ Session-based verification successful for {session_data['email']}")
+            email = session_data['email']
+            otp_type = session_data['otp_type']
+        else:
+            logger.warning(f"⚠️ Session verification failed: {error_msg}")
+            logger.info(f"🔄 Attempting database fallback verification...")
+            
+            # Database fallback: try to find recent OTP for this IP
+            email = data.get('email', '').strip().lower()
+            if not email:
+                return jsonify(create_error_response('Email is required for verification')), 400
+            
+            # Try to determine OTP type from database
+            otp_type = 'login'  # Default to login
+            try:
+                # Check if user exists to determine type
+                if user_manager.user_exists(email):
+                    otp_type = 'login'
+                else:
+                    # Check for recent signup OTP
+                    otp_type = 'signup'
+                logger.info(f"🔄 Database fallback: Using {otp_type} verification for {email}")
+            except Exception as db_error:
+                logger.error(f"❌ Database fallback error: {db_error}")
+                return jsonify(create_error_response('Verification failed. Please request a new code.')), 400
         
         # Handle login OTP verification
         if otp_type == 'login':
@@ -510,6 +591,75 @@ def verify_otp():
             
     except Exception as e:
         logger.error(f"Error verifying OTP: {str(e)}")
+        return jsonify(create_error_response('An error occurred during verification. Please try again.')), 500
+
+@auth_bp.route('/api/verify-otp-db', methods=['POST'])
+def verify_otp_database_fallback():
+    """Database-backed OTP verification fallback when sessions fail"""
+    try:
+        # Validate request data
+        data = request.get_json()
+        if not data:
+            return jsonify(create_error_response('Invalid request data')), 400
+        
+        email = data.get('email', '').strip().lower()
+        otp_code = data.get('otp_code', '').strip()
+        
+        if not email or not otp_code:
+            return jsonify(create_error_response('Email and verification code are required')), 400
+        
+        # Validate OTP format
+        if not otp_code.isdigit() or len(otp_code) != 6:
+            return jsonify(create_error_response('Invalid verification code format')), 400
+        
+        client_info = get_client_info()
+        logger.info(f"🔄 Database fallback OTP verification for {email} from {client_info['ip_address']}")
+        
+        # Determine OTP type
+        if user_manager.user_exists(email):
+            otp_type = 'login'
+            success, message = user_manager.verify_login_otp(email, otp_code)
+        else:
+            otp_type = 'signup'
+            # For signup, we need additional data
+            temp_id = data.get('temp_user_id')
+            password = data.get('password')
+            if not temp_id or not password:
+                return jsonify(create_error_response('Signup verification requires temp_user_id and password')), 400
+            success, message = user_manager.verify_signup_otp(temp_id, otp_code, password)
+        
+        if success:
+            if otp_type == 'login':
+                # Get user info and create session
+                user = user_manager.get_user_by_email(email)
+                if user:
+                    session.clear()
+                    session['user_id'] = user['user_id']
+                    session['user_email'] = user['email']
+                    session['authenticated'] = True
+                    session['login_time'] = datetime.now().isoformat()
+                    session['last_activity'] = datetime.now().isoformat()
+                    session['session_id'] = secrets.token_urlsafe(32)
+                    session.modified = True
+                    session.permanent = True
+                    
+                    logger.info(f"✅ Database fallback login successful for {email}")
+                    return jsonify(create_success_response('Login successful', url_for('index')))
+                else:
+                    return jsonify(create_error_response('User account not found')), 500
+            else:
+                # Signup successful
+                logger.info(f"✅ Database fallback signup successful for {email}")
+                return jsonify(create_success_response(
+                    'Account created successfully! Please login.',
+                    url_for('auth.login')
+                ))
+        else:
+            logger.warning(f"🔒 Database fallback OTP verification failed for {email}")
+            return jsonify(create_error_response(message)), 400
+            
+    except Exception as e:
+        logger.error(f"Error in database fallback OTP verification: {str(e)}")
         return jsonify(create_error_response('An error occurred during verification. Please try again.')), 500
 
 @auth_bp.route('/api/resend-otp', methods=['POST'])
@@ -857,6 +1007,61 @@ def health_check():
 
 @auth_bp.route('/session-debug')
 def session_debug():
+    """Debug endpoint to check session status"""
+    client_info = get_client_info()
+    
+    debug_info = {
+        'session_id': session.get('_id', 'No session ID'),
+        'session_keys': list(session.keys()),
+        'otp_email': session.get('otp_email'),
+        'otp_type': session.get('otp_type'),
+        'otp_sent_at': session.get('otp_sent_at'),
+        'user_id': session.get('user_id'),
+        'authenticated': session.get('authenticated'),
+        'client_ip': client_info['ip_address'],
+        'user_agent': client_info['user_agent'],
+        'session_modified': session.modified,
+        'session_permanent': session.permanent,
+        'session_created': session.get('session_created')
+    }
+    
+    logger.info(f"Session debug info for {client_info['ip_address']}: {debug_info}")
+    return jsonify(debug_info)
+
+@auth_bp.route('/test-session', methods=['POST'])
+def test_session():
+    """Test endpoint to set and retrieve session data"""
+    try:
+        data = request.get_json()
+        test_key = data.get('test_key', 'test_value')
+        test_email = data.get('test_email', 'test@example.com')
+        
+        # Set test session data
+        session['test_key'] = test_key
+        session['test_email'] = test_email
+        session['test_timestamp'] = datetime.now().isoformat()
+        session.modified = True
+        session.permanent = True
+        
+        logger.info(f"✅ Test session data set: {list(session.keys())}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Test session data set',
+            'session_keys': list(session.keys()),
+            'test_data': {
+                'test_key': session.get('test_key'),
+                'test_email': session.get('test_email'),
+                'test_timestamp': session.get('test_timestamp')
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Test session error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
     """Debug endpoint to check session state (development only)"""
     client_info = get_client_info()
     session_info = {

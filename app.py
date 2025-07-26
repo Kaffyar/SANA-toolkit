@@ -91,6 +91,16 @@ def create_app():
         SESSION_COOKIE_MAX_AGE=86400,  # 24 hours in seconds
     )
     
+    # Add CORS headers for cloud deployment
+    @app.after_request
+    def add_cors_headers(response):
+        """Add CORS headers to all responses"""
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
+    
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(virustotal_bp)
