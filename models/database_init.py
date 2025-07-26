@@ -5,6 +5,7 @@ Added comprehensive scan history tracking for all scan types
 
 import sqlite3
 import os
+import time
 from datetime import datetime
 import logging
 
@@ -337,6 +338,60 @@ class DatabaseInitializer:
                 conn.close()
         return False
     
+    def force_clean_rebuild_if_corrupted(self):
+        """Force clean database rebuild if schema is corrupted"""
+        try:
+            # Test if schema is valid
+            conn = self.create_connection()
+            if conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM user_otp LIMIT 1")
+                conn.close()
+                logger.info("✅ Database schema validation passed")
+                return False  # No corruption detected
+        except sqlite3.Error as e:
+            # Schema is corrupted, force rebuild
+            logger.warning(f"⚠️ Database schema corruption detected: {e}")
+            import os
+            if os.path.exists(self.db_path):
+                backup_path = f"{self.db_path}.backup.{int(time.time())}"
+                try:
+                    os.rename(self.db_path, backup_path)
+                    logger.info(f"🗑️ Backed up corrupted database to: {backup_path}")
+                except OSError:
+                    os.remove(self.db_path)
+                    logger.info("🗑️ Removed corrupted database for clean rebuild")
+                logger.info("🔄 Database will be recreated with clean schema")
+                return True  # Corruption detected, rebuild needed
+        return False
+
+    def recreate_indexes_if_needed(self):
+        """Recreate indexes if they reference old schema columns"""
+        try:
+            conn = self.create_connection()
+            if conn:
+                cursor = conn.cursor()
+                
+                # Check if old indexes exist
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_otp_user_id%'")
+                old_indexes = cursor.fetchall()
+                
+                if old_indexes:
+                    logger.info("🔄 Found old OTP indexes, recreating with new schema...")
+                    # Drop old indexes
+                    for index in old_indexes:
+                        cursor.execute(f"DROP INDEX IF EXISTS {index[0]}")
+                    
+                    # Recreate with new schema
+                    self.create_indexes()
+                    logger.info("✅ Indexes recreated successfully")
+                
+                conn.close()
+                return True
+        except sqlite3.Error as e:
+            logger.error(f"❌ Error recreating indexes: {e}")
+            return False
+
     def create_indexes(self):
         """Create optimized database indexes for better performance"""
         indexes = [
@@ -345,10 +400,10 @@ class DatabaseInitializer:
             "CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active) WHERE is_active = TRUE;",
             "CREATE INDEX IF NOT EXISTS idx_users_verified ON users(is_verified);",
             "CREATE INDEX IF NOT EXISTS idx_users_locked ON users(locked_until) WHERE locked_until IS NOT NULL;",
-            # OTP table indexes
-            "CREATE INDEX IF NOT EXISTS idx_otp_user_id ON user_otp(user_id);",
+            # OTP table indexes - Updated to use identifier column
+            "CREATE INDEX IF NOT EXISTS idx_otp_identifier ON user_otp(identifier);",
             "CREATE INDEX IF NOT EXISTS idx_otp_expires ON user_otp(expires_at);",
-            "CREATE INDEX IF NOT EXISTS idx_otp_code_lookup ON user_otp(user_id, otp_code, otp_type, is_used, expires_at);",
+            "CREATE INDEX IF NOT EXISTS idx_otp_code_lookup ON user_otp(identifier, otp_code, otp_type, is_used, expires_at);",
             "CREATE INDEX IF NOT EXISTS idx_otp_cleanup ON user_otp(expires_at) WHERE is_used = FALSE;",
             # Temp registrations indexes
             "CREATE INDEX IF NOT EXISTS idx_temp_email ON temp_registrations(email);",
@@ -393,6 +448,10 @@ class DatabaseInitializer:
         """Initialize the complete database structure"""
         logger.info("🚀 Starting SANA Toolkit database initialization...")
         
+        # Check for database corruption and handle if needed
+        if self.force_clean_rebuild_if_corrupted():
+            logger.info("🔄 Proceeding with clean database rebuild...")
+        
         # Check if database file exists
         db_exists = os.path.exists(self.db_path)
         if db_exists:
@@ -408,6 +467,11 @@ class DatabaseInitializer:
         success &= self.create_user_sessions_table()
         success &= self.create_scan_history_table()  # ✅ NEW: Added scan history table
         success &= self.create_user_settings_table()  # ✅ NEW: Added user settings table
+        
+        # Check for index recreation if needed
+        if db_exists:
+            self.recreate_indexes_if_needed()
+        
         success &= self.create_indexes()
         
         if success:
