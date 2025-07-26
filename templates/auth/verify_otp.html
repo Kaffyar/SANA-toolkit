@@ -295,18 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const requestData = { otp_code: otpCode };
             
-                         // FIXED: Only add password for signup and if it exists
-             if (otpType === 'signup') {
-                 const passwordField = document.getElementById('signup-password') || 
-                                    document.querySelector('[name="password"]') ||
-                                    document.querySelector('[data-password]');
-                 
-                 if (passwordField) {
-                     requestData.password = passwordField.value || passwordField.getAttribute('data-password');
-                 }
-             }
-            
-                         console.log('Sending verification request...', requestData);
+            console.log('Sending verification request...', requestData);
              
              // First, try the regular OTP verification endpoint
              let response = await fetch('/auth/api/verify-otp', {
@@ -360,18 +349,8 @@ document.addEventListener('DOMContentLoaded', function() {
                      
                      // Add password for signup - try to get from session or form
                      if (otpType === 'signup') {
-                         // Try to get password from hidden field or session
-                         const passwordField = document.getElementById('signup-password') || 
-                                            document.querySelector('[name="password"]') ||
-                                            document.querySelector('[data-password]');
-                         
-                         if (passwordField) {
-                             fallbackData.password = passwordField.value || passwordField.getAttribute('data-password');
-                         } else {
-                             console.warn('⚠️ No password field found for signup verification');
-                             // For database fallback, we might need to handle this differently
-                             // The backend should be able to handle missing password for existing OTP verification
-                         }
+                         // Password is now stored in database during signup, no need to look for it here
+                         console.log('🔄 Password stored in database during signup, proceeding with verification');
                      }
                      
                      console.log('🔄 Database fallback request data:', fallbackData);

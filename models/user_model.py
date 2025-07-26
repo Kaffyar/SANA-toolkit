@@ -366,74 +366,93 @@ class UserManager:
             logger.error(f"Error sending login OTP: {e}")
             return False, "An error occurred while sending OTP"
     
-    def send_signup_otp(self, email: str) -> Tuple[bool, str, Optional[str]]:
-        """Send OTP for signup verification with atomic operations"""
-        if self.user_exists(email):
-            return False, "User already exists", None
+    def send_signup_otp(self, email: str, password: str = None) -> Tuple[bool, str, Optional[str]]:
+        """Send OTP for signup with password storage for session fallback"""
+        email = email.lower().strip()
         
+        # Validate email
+        if not self.validate_email(email):
+            return False, "Invalid email format", None
+            
+        # Check if user already exists
+        if self.user_exists(email):
+            return False, "An account with this email already exists", None
+        
+        conn = self.create_connection()
+        if not conn:
+            return False, "Database connection failed", None
+            
         try:
-            # Generate a temporary user ID
+            cursor = conn.cursor()
+            
+            # Clean up any existing temporary registrations for this email
+            cursor.execute('DELETE FROM temp_registrations WHERE email = ?', (email,))
+            
+            # Generate temporary ID
             temp_id = f"temp_{int(time.time())}_{secrets.token_hex(4)}"
             
-            conn = self.create_connection()
-            if not conn:
-                return False, "Database connection failed", None
-                
-            try:
-                with conn:  # Use transaction for atomicity
-                    cursor = conn.cursor()
+            # Store temporary registration with password (if provided)
+            if password:
+                # Hash the password temporarily for storage
+                temp_password_hash = generate_password_hash(password)
+                cursor.execute('''
+                    INSERT INTO temp_registrations 
+                    (temp_id, email, password_hash, created_at, expires_at)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (temp_id, email, temp_password_hash, datetime.now(), 
+                      datetime.now() + timedelta(minutes=20)))
+            else:
+                cursor.execute('''
+                    INSERT INTO temp_registrations 
+                    (temp_id, email, created_at, expires_at)
+                    VALUES (?, ?, ?, ?)
+                ''', (temp_id, email, datetime.now(), 
+                      datetime.now() + timedelta(minutes=20)))
+            
+            # Commit the transaction
+            conn.commit()
+            
+            # Close the connection before OTP operations
+            conn.close()
+            conn = None
+            
+            # Generate and save OTP
+            otp_code = self.otp_service.generate_otp()
+            if not self.otp_service.save_otp_to_db(temp_id, otp_code, 'signup'):
+                # Clean up on failure
+                cleanup_conn = self.create_connection()
+                if cleanup_conn:
+                    try:
+                        cleanup_conn.execute('DELETE FROM temp_registrations WHERE temp_id = ?', (temp_id,))
+                        cleanup_conn.commit()
+                    finally:
+                        cleanup_conn.close()
+                return False, "Failed to save verification code", None
+            
+            # Send OTP
+            if self.otp_service.send_otp_email(email, otp_code, 'signup'):
+                logger.info(f"✅ Signup OTP sent to {email} (temp_id: {temp_id})")
+                return True, "Verification code sent successfully", temp_id
+            else:
+                # Clean up on failure
+                cleanup_conn = self.create_connection()
+                if cleanup_conn:
+                    try:
+                        cleanup_conn.execute('DELETE FROM temp_registrations WHERE temp_id = ?', (temp_id,))
+                        cleanup_conn.commit()
+                    finally:
+                        cleanup_conn.close()
+                return False, "Failed to send verification code", None
                     
-                    # Check for recent registration attempt
-                    cursor.execute('''
-                        SELECT temp_id, created_at FROM temp_registrations WHERE email = ?
-                        ORDER BY created_at DESC LIMIT 1
-                    ''', (email.lower(),))
-                    
-                    existing_temp = cursor.fetchone()
-                    if existing_temp:
-                        temp_time = datetime.fromisoformat(existing_temp['created_at'])
-                        if datetime.now() - temp_time < timedelta(seconds=self.otp_rate_limit_seconds):
-                            logger.info(f"🔄 Recent signup OTP exists for {email}, not sending duplicate")
-                            return True, "Verification email sent", existing_temp['temp_id']
-                        else:
-                            # Delete old temporary registration and OTP
-                            cursor.execute('DELETE FROM temp_registrations WHERE email = ?', (email.lower(),))
-                            cursor.execute('DELETE FROM user_otp WHERE user_id = ? AND otp_type = ?', (existing_temp['temp_id'], 'signup'))
-                    
-                    # Generate OTP code
-                    otp_code = self.otp_service.generate_otp()
-                    
-                    # Save OTP to database first
-                    if not self.otp_service.save_otp_to_db(temp_id, otp_code, 'signup'):
-                        return False, "Failed to save OTP", None
-                    
-                    # Insert temporary registration using REPLACE to handle UNIQUE constraint
-                    cursor.execute('''
-                        INSERT OR REPLACE INTO temp_registrations (temp_id, email, created_at)
-                        VALUES (?, ?, ?)
-                    ''', (temp_id, email.lower(), datetime.now().isoformat()))
-                    
-                # ONLY send email if all database operations succeeded
-                if not self.otp_service.send_otp_email(email, otp_code, 'signup'):
-                    # If email sending fails, clean up the temp registration
-                    with conn:
-                        cursor = conn.cursor()
-                        cursor.execute('DELETE FROM temp_registrations WHERE temp_id = ?', (temp_id,))
-                        cursor.execute('DELETE FROM user_otp WHERE user_id = ? AND otp_type = ?', (temp_id, 'signup'))
-                    return False, "Failed to send verification email", None
-                
-                logger.info(f"📧 Signup OTP sent to {email}")
-                return True, "Verification email sent", temp_id
-                    
-            finally:
-                conn.close()
-                
+        except sqlite3.IntegrityError as e:
+            logger.error(f"Integrity error sending signup OTP: {e}")
+            return False, "Database error during signup", None
         except sqlite3.Error as e:
-            logger.error(f"Database error in signup OTP: {e}")
-            return False, "Database error occurred", None
-        except Exception as e:
-            logger.error(f"Error sending signup OTP: {e}")
-            return False, "An error occurred while sending OTP", None
+            logger.error(f"Database error sending signup OTP: {e}")
+            return False, "Database error during signup", None
+        finally:
+            if conn:
+                conn.close()
     
     def verify_login_otp(self, email: str, otp_code: str) -> Tuple[bool, str]:
         """Verify OTP for login with comprehensive validation"""
@@ -453,13 +472,8 @@ class UserManager:
             self.increment_login_attempts(user['user_id'])
             return False, "Invalid or expired OTP"
     
-    def verify_signup_otp(self, temp_id: str, otp_code: str, new_password: str) -> Tuple[bool, str]:
+    def verify_signup_otp(self, temp_id: str, otp_code: str, new_password: str = None) -> Tuple[bool, str]:
         """Verify OTP for signup and create user account atomically"""
-        # Validate password first
-        is_valid, message = self.validate_password(new_password)
-        if not is_valid:
-            return False, message
-        
         conn = self.create_connection()
         if not conn:
             return False, "Database connection failed"
@@ -468,13 +482,14 @@ class UserManager:
             with conn:  # FIXED: Use transaction for atomicity
                 cursor = conn.cursor()
                 
-                # Get email associated with temp ID
-                cursor.execute('SELECT email FROM temp_registrations WHERE temp_id = ? LIMIT 1', (temp_id,))
+                # Get email and password associated with temp ID
+                cursor.execute('SELECT email, password_hash FROM temp_registrations WHERE temp_id = ? LIMIT 1', (temp_id,))
                 result = cursor.fetchone()
                 if not result:
                     return False, "Invalid verification session"
                     
                 email = result['email']
+                stored_password_hash = result['password_hash'] if result['password_hash'] else None
                 
                 # Double-check user doesn't exist (race condition protection)
                 if self.user_exists(email):
@@ -484,8 +499,20 @@ class UserManager:
                 if not self.otp_service.verify_otp(temp_id, otp_code, 'signup'):
                     return False, "Invalid or expired verification code"
                 
+                # Handle password - use provided password or stored password
+                if new_password:
+                    # Validate provided password
+                    is_valid, message = self.validate_password(new_password)
+                    if not is_valid:
+                        return False, message
+                    password_hash = generate_password_hash(new_password)
+                elif stored_password_hash:
+                    # Use stored password from database
+                    password_hash = stored_password_hash
+                else:
+                    return False, "Password is required to complete registration"
+                
                 # Create the user account
-                password_hash = generate_password_hash(new_password)
                 cursor.execute('''
                     INSERT INTO users (email, password_hash, is_verified, is_active, created_at)
                     VALUES (?, ?, ?, ?, ?)
@@ -506,41 +533,6 @@ class UserManager:
             return False, "Failed to create account - data integrity error"
         except sqlite3.Error as e:
             logger.error(f"Database error completing signup: {e}")
-            return False, "Database error during verification"
-        finally:
-            conn.close()
-    
-    def verify_signup_otp_without_password(self, temp_id: str, otp_code: str) -> Tuple[bool, str]:
-        """Verify OTP for signup without creating account (for database fallback)"""
-        conn = self.create_connection()
-        if not conn:
-            return False, "Database connection failed"
-            
-        try:
-            with conn:
-                cursor = conn.cursor()
-                
-                # Get email associated with temp ID
-                cursor.execute('SELECT email FROM temp_registrations WHERE temp_id = ? LIMIT 1', (temp_id,))
-                result = cursor.fetchone()
-                if not result:
-                    return False, "Invalid verification session"
-                    
-                email = result['email']
-                
-                # Double-check user doesn't exist (race condition protection)
-                if self.user_exists(email):
-                    return False, "An account with this email already exists"
-                
-                # Verify the OTP
-                if not self.otp_service.verify_otp(temp_id, otp_code, 'signup'):
-                    return False, "Invalid or expired verification code"
-                
-                logger.info(f"✅ OTP verified for temp_id {temp_id} (email: {email})")
-                return True, "OTP verified successfully"
-                
-        except sqlite3.Error as e:
-            logger.error(f"Database error verifying OTP: {e}")
             return False, "Database error during verification"
         finally:
             conn.close()

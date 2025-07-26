@@ -114,10 +114,13 @@ class DatabaseInitializer:
         CREATE TABLE IF NOT EXISTS temp_registrations (
             temp_id TEXT PRIMARY KEY,
             email TEXT UNIQUE NOT NULL COLLATE NOCASE,
+            password_hash TEXT,  -- Store password hash for session fallback
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            expires_at DATETIME DEFAULT (datetime('now', '+20 minutes')) NOT NULL,
             
             CONSTRAINT chk_temp_id_format CHECK (temp_id LIKE 'temp_%'),
-            CONSTRAINT chk_email_format CHECK (email LIKE '%@%.%')
+            CONSTRAINT chk_email_format CHECK (email LIKE '%@%.%'),
+            CONSTRAINT chk_expires_future CHECK (expires_at > created_at)
         );
         """
         
@@ -127,7 +130,7 @@ class DatabaseInitializer:
         AFTER INSERT ON temp_registrations
         BEGIN
             DELETE FROM temp_registrations 
-            WHERE created_at < datetime('now', '-1 hour');
+            WHERE expires_at < datetime('now');
         END;
         """
         
@@ -138,6 +141,25 @@ class DatabaseInitializer:
                     cursor = conn.cursor()
                     cursor.execute(create_temp_reg_sql)
                     cursor.execute(cleanup_trigger_sql)
+                    
+                    # Add password_hash column if it doesn't exist (for existing databases)
+                    try:
+                        cursor.execute("ALTER TABLE temp_registrations ADD COLUMN password_hash TEXT")
+                        logger.info("✅ Added password_hash column to temp_registrations table")
+                    except sqlite3.OperationalError:
+                        # Column already exists
+                        pass
+                    
+                    # Add expires_at column if it doesn't exist (for existing databases)
+                    try:
+                        cursor.execute("ALTER TABLE temp_registrations ADD COLUMN expires_at DATETIME")
+                        # Set default value for existing records
+                        cursor.execute("UPDATE temp_registrations SET expires_at = datetime(created_at, '+20 minutes') WHERE expires_at IS NULL")
+                        logger.info("✅ Added expires_at column to temp_registrations table")
+                    except sqlite3.OperationalError:
+                        # Column already exists
+                        pass
+                    
                 logger.info("✅ Temporary registrations table created successfully")
                 return True
             except sqlite3.Error as e:
