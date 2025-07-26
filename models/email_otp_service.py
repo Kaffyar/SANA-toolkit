@@ -276,13 +276,30 @@ class EmailOTPService:
     
     def verify_otp(self, user_id, otp_code, otp_type='login'):
         """Verify OTP code with improved error handling"""
+        logger.info(f"🔍 DEBUG: OTP service verify_otp called with user_id={user_id}, otp_code={otp_code}, otp_type={otp_type}")
+        
         conn = self.create_connection()
         if not conn:
+            logger.error("❌ Database connection failed in OTP service")
             return False
             
         try:
             with conn:  # FIXED: Use context manager
                 cursor = conn.cursor()
+                
+                # First, let's see what OTPs exist for this user
+                cursor.execute('''
+                    SELECT otp_id, otp_code, otp_type, is_used, expires_at 
+                    FROM user_otp 
+                    WHERE user_id = ? AND otp_type = ?
+                ''', (user_id, otp_type))
+                
+                all_otps = cursor.fetchall()
+                logger.info(f"🔍 Found {len(all_otps)} OTPs for user_id={user_id}, type={otp_type}")
+                for otp in all_otps:
+                    logger.info(f"🔍 OTP: id={otp['otp_id']}, code={otp['otp_code']}, used={otp['is_used']}, expires={otp['expires_at']}")
+                
+                # Now check for the specific OTP
                 cursor.execute('''
                     SELECT otp_id FROM user_otp 
                     WHERE user_id = ? AND otp_code = ? AND otp_type = ? 
@@ -294,10 +311,10 @@ class EmailOTPService:
                 if result:
                     # Mark OTP as used
                     cursor.execute('UPDATE user_otp SET is_used = TRUE WHERE otp_id = ?', (result['otp_id'],))
-                    logger.info(f"OTP verified successfully for user {user_id}, type {otp_type}")
+                    logger.info(f"✅ OTP verified successfully for user {user_id}, type {otp_type}")
                     return True
                 else:
-                    logger.warning(f"OTP verification failed for user {user_id}, type {otp_type}")
+                    logger.warning(f"❌ OTP verification failed for user {user_id}, type {otp_type}, code {otp_code}")
                     return False
                     
         except sqlite3.Error as e:

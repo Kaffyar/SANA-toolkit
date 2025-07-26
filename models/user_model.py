@@ -491,8 +491,11 @@ class UserManager:
     
     def verify_signup_otp(self, temp_id: str, otp_code: str, new_password: str = None) -> Tuple[bool, str]:
         """Verify OTP for signup and create user account atomically"""
+        logger.info(f"🔍 DEBUG: verify_signup_otp called with temp_id={temp_id}, otp_code={otp_code}, new_password={'provided' if new_password else 'None'}")
+        
         conn = self.create_connection()
         if not conn:
+            logger.error("❌ Database connection failed in verify_signup_otp")
             return False, "Database connection failed"
             
         try:
@@ -503,30 +506,41 @@ class UserManager:
                 cursor.execute('SELECT email, password_hash FROM temp_registrations WHERE temp_id = ? LIMIT 1', (temp_id,))
                 result = cursor.fetchone()
                 if not result:
+                    logger.error(f"❌ No temp_registration found for temp_id: {temp_id}")
                     return False, "Invalid verification session"
                     
                 email = result['email']
                 stored_password_hash = result['password_hash'] if result['password_hash'] else None
+                logger.info(f"🔍 Found email: {email}, stored_password_hash: {'present' if stored_password_hash else 'None'}")
                 
                 # Double-check user doesn't exist (race condition protection)
                 if self.user_exists(email):
+                    logger.warning(f"⚠️ User already exists: {email}")
                     return False, "An account with this email already exists"
                 
                 # Verify the OTP
+                logger.info(f"🔍 Verifying OTP: temp_id={temp_id}, otp_code={otp_code}")
                 if not self.otp_service.verify_otp(temp_id, otp_code, 'signup'):
+                    logger.warning(f"❌ OTP verification failed for temp_id={temp_id}, otp_code={otp_code}")
                     return False, "Invalid or expired verification code"
+                
+                logger.info(f"✅ OTP verified successfully for {email}")
                 
                 # Handle password - use provided password or stored password
                 if new_password:
+                    logger.info(f"🔍 Using provided password for {email}")
                     # Validate provided password
                     is_valid, message = self.validate_password(new_password)
                     if not is_valid:
+                        logger.warning(f"❌ Password validation failed: {message}")
                         return False, message
                     password_hash = generate_password_hash(new_password)
                 elif stored_password_hash:
+                    logger.info(f"🔍 Using stored password hash for {email}")
                     # Use stored password from database
                     password_hash = stored_password_hash
                 else:
+                    logger.error(f"❌ No password available for {email}")
                     return False, "Password is required to complete registration"
                 
                 # Create the user account
