@@ -628,8 +628,11 @@ def verify_otp_database_fallback():
             # For signup, we need additional data
             temp_id = data.get('temp_user_id')
             password = data.get('password')
+            
             if not temp_id or not password:
-                return jsonify(create_error_response('Signup verification requires temp_user_id and password')), 400
+                logger.warning(f"⚠️ Missing temp_id or password for signup verification of {email}")
+                return jsonify(create_error_response('Signup verification requires temp_user_id and password. Please try the signup process again.')), 400
+            
             success, message = user_manager.verify_signup_otp(temp_id, otp_code, password)
         
         if success:

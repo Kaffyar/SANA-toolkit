@@ -294,24 +294,101 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const requestData = { otp_code: otpCode };
             
-            // FIXED: Only add password for signup and if it exists
-            if (otpType === 'signup' && typeof passwordInput !== 'undefined' && passwordInput) {
-                requestData.password = passwordInput.value;
-            }
+                         // FIXED: Only add password for signup and if it exists
+             if (otpType === 'signup') {
+                 const passwordField = document.getElementById('signup-password') || 
+                                    document.querySelector('[name="password"]') ||
+                                    document.querySelector('[data-password]');
+                 
+                 if (passwordField) {
+                     requestData.password = passwordField.value || passwordField.getAttribute('data-password');
+                 }
+             }
             
-            console.log('Sending verification request...', requestData);
-            
-            const response = await fetch('/auth/api/verify-otp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            console.log('Response status:', response.status);
-            const data = await response.json();
-            console.log('Response data:', data);
+                         console.log('Sending verification request...', requestData);
+             
+             // First, try the regular OTP verification endpoint
+             let response = await fetch('/auth/api/verify-otp', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                 },
+                 body: JSON.stringify(requestData)
+             });
+             
+             console.log('Response status:', response.status);
+             let data = await response.json();
+             console.log('Response data:', data);
+             
+             // If the regular endpoint fails with session error, try database fallback
+             if (!response.ok && (data.message?.includes('Email is required') || data.message?.includes('Session not found'))) {
+                 console.log('🔄 Session-based verification failed, trying database fallback...');
+                 
+                 // Get email from the page
+                 const emailElement = document.querySelector('.email-display');
+                 let email = null;
+                 
+                 if (emailElement) {
+                     email = emailElement.textContent || emailElement.getAttribute('data-email');
+                 }
+                 
+                 // If we can't find email, try to extract from page text
+                 if (!email) {
+                     const pageText = document.body.textContent;
+                     const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                     if (emailMatch) {
+                         email = emailMatch[0];
+                     }
+                 }
+                 
+                 if (email) {
+                     console.log('🔄 Using email for database fallback:', email);
+                     
+                     // Try database fallback endpoint
+                     const fallbackData = {
+                         email: email,
+                         otp_code: otpCode
+                     };
+                     
+                     // Get temp_user_id if available (for signup)
+                     const formElement = document.getElementById('otp-form');
+                     if (formElement && formElement.hasAttribute('data-temp-user-id')) {
+                         fallbackData.temp_user_id = formElement.getAttribute('data-temp-user-id');
+                         console.log('🔄 Using temp_user_id for database fallback:', fallbackData.temp_user_id);
+                     }
+                     
+                     // Add password for signup - try to get from session or form
+                     if (otpType === 'signup') {
+                         // Try to get password from hidden field or session
+                         const passwordField = document.getElementById('signup-password') || 
+                                            document.querySelector('[name="password"]') ||
+                                            document.querySelector('[data-password]');
+                         
+                         if (passwordField) {
+                             fallbackData.password = passwordField.value || passwordField.getAttribute('data-password');
+                         } else {
+                             console.warn('⚠️ No password field found for signup verification');
+                             // For database fallback, we might need to handle this differently
+                             // The backend should be able to handle missing password for existing OTP verification
+                         }
+                     }
+                     
+                     console.log('🔄 Database fallback request data:', fallbackData);
+                     
+                     response = await fetch('/auth/api/verify-otp-db', {
+                         method: 'POST',
+                         headers: {
+                             'Content-Type': 'application/json',
+                         },
+                         body: JSON.stringify(fallbackData)
+                     });
+                     
+                     data = await response.json();
+                     console.log('🔄 Database fallback result:', data);
+                 } else {
+                     console.error('❌ Could not find email for database fallback');
+                 }
+             }
             
             if (response.ok && data.status === 'success') {
                 // Mark as successfully submitted
