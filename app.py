@@ -917,9 +917,6 @@ def require_login():
 
 # ===== STARTUP INITIALIZATION ===== #
 
-# Create the Flask app instance for Render deployment
-app = create_app()
-
 if __name__ == '__main__':
     try:
         db_init = DatabaseInitializer()
