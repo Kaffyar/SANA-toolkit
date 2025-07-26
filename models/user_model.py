@@ -510,6 +510,41 @@ class UserManager:
         finally:
             conn.close()
     
+    def verify_signup_otp_without_password(self, temp_id: str, otp_code: str) -> Tuple[bool, str]:
+        """Verify OTP for signup without creating account (for database fallback)"""
+        conn = self.create_connection()
+        if not conn:
+            return False, "Database connection failed"
+            
+        try:
+            with conn:
+                cursor = conn.cursor()
+                
+                # Get email associated with temp ID
+                cursor.execute('SELECT email FROM temp_registrations WHERE temp_id = ? LIMIT 1', (temp_id,))
+                result = cursor.fetchone()
+                if not result:
+                    return False, "Invalid verification session"
+                    
+                email = result['email']
+                
+                # Double-check user doesn't exist (race condition protection)
+                if self.user_exists(email):
+                    return False, "An account with this email already exists"
+                
+                # Verify the OTP
+                if not self.otp_service.verify_otp(temp_id, otp_code, 'signup'):
+                    return False, "Invalid or expired verification code"
+                
+                logger.info(f"✅ OTP verified for temp_id {temp_id} (email: {email})")
+                return True, "OTP verified successfully"
+                
+        except sqlite3.Error as e:
+            logger.error(f"Database error verifying OTP: {e}")
+            return False, "Database error during verification"
+        finally:
+            conn.close()
+    
     def change_password(self, user_id: int, old_password: str, new_password: str) -> Tuple[bool, str]:
         """Change user password with comprehensive validation"""
         user = self.get_user_by_id(user_id)

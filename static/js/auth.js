@@ -1083,6 +1083,12 @@ document.head.appendChild(styleSheet);
 
 /* ===== INITIALIZE ON DOM CONTENT LOADED ===== */
 document.addEventListener('DOMContentLoaded', () => {
+    // Skip initialization if disabled (e.g., on verify-otp page)
+    if (window.DISABLE_AUTH_JS) {
+        console.log('🔄 Skipping auth.js initialization (disabled for this page)');
+        return;
+    }
+    
     // Initialize SANA Authentication System
     window.SANAAuth = new SANAAuth();
 

@@ -148,6 +148,9 @@
 
 {% block scripts %}
 <script>
+// PREVENT AUTH.JS INITIALIZATION ON THIS PAGE
+window.DISABLE_AUTH_JS = true;
+
 // PREVENT DUPLICATE REQUESTS - Add this at the very top
 let isSubmitting = false;
 let hasSubmitted = false;
@@ -156,10 +159,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add this to see what's happening
     console.log('Current session data:', document.cookie);
     
-    // Disable auth.js for this page to prevent conflicts
-    if (window.SANAAuth) {
-        window.SANAAuth.state.isSubmitting = true; // Block auth.js
-    }
+         // auth.js is disabled for this page to prevent conflicts
+     console.log('🔄 Using template-specific JavaScript for OTP verification');
     
     const form = document.getElementById('otp-form');
     const otpInput = document.getElementById('otp-input');
@@ -507,13 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // PREVENT AUTH.JS CONFLICTS
-    setTimeout(() => {
-        // Stop any auth.js timers that might conflict
-        if (window.SANAAuth && window.SANAAuth.clearTimers) {
-            window.SANAAuth.clearTimers();
-        }
-    }, 100);
+         // auth.js is disabled for this page, no conflicts to prevent
 
     // Override global notification to prevent duplicates
     let lastNotification = '';
