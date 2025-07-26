@@ -367,32 +367,42 @@ class UserManager:
             return False, "An error occurred while sending OTP"
     
     def send_signup_otp(self, email: str, password: str = None) -> Tuple[bool, str, Optional[str]]:
-        """Send OTP for signup with password storage for session fallback"""
+        """Send OTP for signup with password storage for session fallback and enhanced logging"""
         email = email.lower().strip()
+        
+        logger.info(f"🔍 Starting send_signup_otp for email: {email}")
         
         # Validate email
         if not self.validate_email(email):
+            logger.warning(f"❌ Invalid email format: {email}")
             return False, "Invalid email format", None
             
         # Check if user already exists
         if self.user_exists(email):
+            logger.warning(f"❌ User already exists: {email}")
             return False, "An account with this email already exists", None
         
         conn = self.create_connection()
         if not conn:
+            logger.error(f"❌ Database connection failed for {email}")
             return False, "Database connection failed", None
             
         try:
             cursor = conn.cursor()
             
             # Clean up any existing temporary registrations for this email
+            logger.info(f"🧹 Cleaning up existing temp registrations for {email}")
             cursor.execute('DELETE FROM temp_registrations WHERE email = ?', (email,))
+            deleted_count = cursor.rowcount
+            logger.info(f"🧹 Deleted {deleted_count} existing temp registrations for {email}")
             
             # Generate temporary ID
             temp_id = f"temp_{int(time.time())}_{secrets.token_hex(4)}"
+            logger.info(f"🆔 Generated temp_id: {temp_id} for {email}")
             
             # Store temporary registration with password (if provided)
             if password:
+                logger.info(f"🔐 Storing temp registration with password for {email}")
                 # Hash the password temporarily for storage
                 temp_password_hash = generate_password_hash(password)
                 cursor.execute('''
@@ -402,6 +412,7 @@ class UserManager:
                 ''', (temp_id, email, temp_password_hash, datetime.now(), 
                       datetime.now() + timedelta(minutes=20)))
             else:
+                logger.info(f"🔐 Storing temp registration without password for {email}")
                 cursor.execute('''
                     INSERT INTO temp_registrations 
                     (temp_id, email, created_at, expires_at)
@@ -410,48 +421,70 @@ class UserManager:
                       datetime.now() + timedelta(minutes=20)))
             
             # Commit the transaction
+            logger.info(f"💾 Committing temp_registrations insert for {email}")
             conn.commit()
+            logger.info(f"✅ Temp registration committed successfully for {email}")
+            
+            # Verify the insertion immediately
+            cursor.execute('SELECT temp_id FROM temp_registrations WHERE temp_id = ?', (temp_id,))
+            verification_result = cursor.fetchone()
+            if verification_result:
+                logger.info(f"✅ Database verification: temp_id {temp_id} found in temp_registrations")
+            else:
+                logger.error(f"❌ CRITICAL: Database verification failed - temp_id {temp_id} not found after insert!")
             
             # Close the connection before OTP operations
             conn.close()
             conn = None
+            logger.info(f"🔌 Database connection closed for {email}")
             
             # Generate and save OTP
+            logger.info(f"🔢 Generating OTP for {email}")
             otp_code = self.otp_service.generate_otp()
+            logger.info(f"🔢 Generated OTP code: {otp_code} for {email}")
+            
             if not self.otp_service.save_otp_to_db(temp_id, otp_code, 'signup'):
+                logger.error(f"❌ Failed to save OTP to database for {email}")
                 # Clean up on failure
                 cleanup_conn = self.create_connection()
                 if cleanup_conn:
                     try:
                         cleanup_conn.execute('DELETE FROM temp_registrations WHERE temp_id = ?', (temp_id,))
                         cleanup_conn.commit()
+                        logger.info(f"🧹 Cleaned up temp_registration after OTP save failure for {email}")
                     finally:
                         cleanup_conn.close()
                 return False, "Failed to save verification code", None
             
+            logger.info(f"✅ OTP saved to database successfully for {email}")
+            
             # Send OTP
+            logger.info(f"📧 Sending OTP email to {email}")
             if self.otp_service.send_otp_email(email, otp_code, 'signup'):
                 logger.info(f"✅ Signup OTP sent to {email} (temp_id: {temp_id})")
                 return True, "Verification code sent successfully", temp_id
             else:
+                logger.error(f"❌ Failed to send OTP email to {email}")
                 # Clean up on failure
                 cleanup_conn = self.create_connection()
                 if cleanup_conn:
                     try:
                         cleanup_conn.execute('DELETE FROM temp_registrations WHERE temp_id = ?', (temp_id,))
                         cleanup_conn.commit()
+                        logger.info(f"🧹 Cleaned up temp_registration after email send failure for {email}")
                     finally:
                         cleanup_conn.close()
                 return False, "Failed to send verification code", None
                     
         except sqlite3.IntegrityError as e:
-            logger.error(f"Integrity error sending signup OTP: {e}")
+            logger.error(f"❌ Integrity error sending signup OTP for {email}: {e}")
             return False, "Database error during signup", None
         except sqlite3.Error as e:
-            logger.error(f"Database error sending signup OTP: {e}")
+            logger.error(f"❌ Database error sending signup OTP for {email}: {e}")
             return False, "Database error during signup", None
         finally:
             if conn:
+                logger.info(f"🔌 Closing database connection in finally block for {email}")
                 conn.close()
     
     def verify_login_otp(self, email: str, otp_code: str) -> Tuple[bool, str]:
@@ -473,18 +506,40 @@ class UserManager:
             return False, "Invalid or expired OTP"
     
     def find_temp_id_by_email(self, email: str) -> Optional[str]:
-        """Find temp_id for a given email from temp_registrations table"""
+        """Find temp_id for a given email from temp_registrations table with enhanced logging"""
+        logger.info(f"🔍 Searching for temp_id by email: {email}")
+        
         conn = self.create_connection()
         if not conn:
+            logger.error(f"❌ Database connection failed in find_temp_id_by_email for {email}")
             return None
             
         try:
             cursor = conn.cursor()
             cursor.execute('SELECT temp_id FROM temp_registrations WHERE email = ? LIMIT 1', (email,))
             result = cursor.fetchone()
-            return result['temp_id'] if result else None
+            
+            if result:
+                temp_id = result['temp_id']
+                logger.info(f"✅ Found temp_id: {temp_id} for email: {email}")
+                return temp_id
+            else:
+                logger.warning(f"⚠️ No temp_id found for email: {email}")
+                
+                # Additional debugging: check if there are any temp registrations at all
+                cursor.execute('SELECT COUNT(*) as count FROM temp_registrations')
+                total_count = cursor.fetchone()['count']
+                logger.info(f"📊 Total temp_registrations in database: {total_count}")
+                
+                # Check for any temp registrations with similar email
+                cursor.execute('SELECT email, temp_id FROM temp_registrations WHERE email LIKE ? LIMIT 5', (f'%{email.split("@")[0]}%',))
+                similar_results = cursor.fetchall()
+                if similar_results:
+                    logger.info(f"🔍 Found similar emails in temp_registrations: {[r['email'] for r in similar_results]}")
+                
+                return None
         except sqlite3.Error as e:
-            logger.error(f"Database error finding temp_id for {email}: {e}")
+            logger.error(f"❌ Database error finding temp_id for {email}: {e}")
             return None
         finally:
             conn.close()
@@ -682,6 +737,54 @@ class UserManager:
             return {}
         finally:
             conn.close()
+    
+    def check_database_schema(self) -> Dict[str, Any]:
+        """Check database schema and table structure for debugging"""
+        schema_info = {
+            'temp_registrations_exists': False,
+            'temp_registrations_columns': [],
+            'temp_registrations_count': 0,
+            'database_path': self.db_path
+        }
+        
+        conn = self.create_connection()
+        if not conn:
+            logger.error("❌ Cannot check schema - database connection failed")
+            return schema_info
+            
+        try:
+            cursor = conn.cursor()
+            
+            # Check if temp_registrations table exists
+            cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='temp_registrations'
+            """)
+            table_exists = cursor.fetchone() is not None
+            schema_info['temp_registrations_exists'] = table_exists
+            
+            if table_exists:
+                # Get table schema
+                cursor.execute("PRAGMA table_info(temp_registrations)")
+                columns = cursor.fetchall()
+                schema_info['temp_registrations_columns'] = [col['name'] for col in columns]
+                
+                # Get row count
+                cursor.execute("SELECT COUNT(*) as count FROM temp_registrations")
+                count_result = cursor.fetchone()
+                schema_info['temp_registrations_count'] = count_result['count'] if count_result else 0
+                
+                logger.info(f"✅ temp_registrations table exists with {schema_info['temp_registrations_count']} rows")
+                logger.info(f"📋 Columns: {schema_info['temp_registrations_columns']}")
+            else:
+                logger.error("❌ temp_registrations table does not exist!")
+                
+        except sqlite3.Error as e:
+            logger.error(f"❌ Error checking database schema: {e}")
+        finally:
+            conn.close()
+            
+        return schema_info
 
 # Test function
 def test_user_manager():

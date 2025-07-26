@@ -2,9 +2,10 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 from werkzeug.security import generate_password_hash
 import logging
 import re
+import time
+import secrets
 from datetime import datetime, timedelta
 from functools import wraps
-import secrets
 from typing import Dict, Any, Tuple, Optional, Union
 from urllib.parse import urlparse
 
@@ -381,7 +382,7 @@ def send_login_otp():
 
 @auth_bp.route('/api/send-signup-otp', methods=['POST'])
 def send_signup_otp():
-    """Send OTP for signup with comprehensive validation"""
+    """Send OTP for signup with comprehensive validation and enhanced database logging"""
     try:
         # Validate request data
         data = request.get_json()
@@ -428,13 +429,28 @@ def send_signup_otp():
         # Clear any old session data before sending new OTP
         clear_otp_session()
         
-        # Send signup OTP
+        # FIXED: Enhanced logging for signup process
+        client_info = get_client_info()
+        logger.info(f"🚀 Starting signup process for {email} from {client_info['ip_address']}")
+        
+        # Send signup OTP with enhanced logging
+        logger.info(f"📧 Calling user_manager.send_signup_otp for {email}")
         success, message, temp_id = user_manager.send_signup_otp(email, password)
         
         if success:
-            # Enhanced session debugging for signup
-            client_info = get_client_info()
-            logger.info(f"📧 Signup OTP sent to {email} from {client_info['ip_address']}")
+            logger.info(f"✅ Signup OTP sent successfully for {email}")
+            logger.info(f"✅ Generated temp_id: {temp_id}")
+            
+            # FIXED: Verify database insertion immediately
+            logger.info(f"🔍 Verifying database insertion for temp_id: {temp_id}")
+            db_temp_id = user_manager.find_temp_id_by_email(email)
+            if db_temp_id:
+                logger.info(f"✅ Database verification successful: temp_id {db_temp_id} found in database")
+            else:
+                logger.error(f"❌ CRITICAL: Database verification failed - temp_id not found in database!")
+                logger.error(f"❌ Expected temp_id: {temp_id}")
+                logger.error(f"❌ Email: {email}")
+                # Continue anyway - we'll use session data
             
             # Try to update session with comprehensive debugging
             try:
@@ -482,6 +498,7 @@ def send_signup_otp():
                 url_for('auth.verify_otp_page')
             ))
         else:
+            logger.error(f"❌ Signup OTP send failed for {email}: {message}")
             return jsonify(create_error_response(message)), 400
             
     except Exception as e:
@@ -1138,6 +1155,102 @@ def test_session_get():
         
     except Exception as e:
         logger.error(f"❌ Test session get error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@auth_bp.route('/debug-database')
+def debug_database():
+    """Debug endpoint to check database schema and temp_registrations table"""
+    try:
+        # Check database schema
+        schema_info = user_manager.check_database_schema()
+        
+        # Get some sample data from temp_registrations
+        conn = user_manager.create_connection()
+        temp_data = []
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute('SELECT temp_id, email, created_at, expires_at FROM temp_registrations ORDER BY created_at DESC LIMIT 10')
+                rows = cursor.fetchall()
+                temp_data = [dict(row) for row in rows]
+            except sqlite3.Error as e:
+                logger.error(f"Error querying temp_registrations: {e}")
+            finally:
+                conn.close()
+        
+        return jsonify({
+            'status': 'success',
+            'schema_info': schema_info,
+            'temp_registrations_sample': temp_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Database debug error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@auth_bp.route('/test-temp-insert', methods=['POST'])
+def test_temp_insert():
+    """Test endpoint to manually insert a temp registration for debugging"""
+    try:
+        data = request.get_json()
+        email = data.get('email', 'test@example.com')
+        
+        # Generate a test temp_id
+        temp_id = f"test_temp_{int(time.time())}_{secrets.token_hex(4)}"
+        
+        conn = user_manager.create_connection()
+        if not conn:
+            return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
+            
+        try:
+            cursor = conn.cursor()
+            
+            # Insert test temp registration
+            cursor.execute('''
+                INSERT INTO temp_registrations 
+                (temp_id, email, created_at, expires_at)
+                VALUES (?, ?, ?, ?)
+            ''', (temp_id, email, datetime.now(), datetime.now() + timedelta(minutes=20)))
+            
+            conn.commit()
+            
+            # Verify insertion
+            cursor.execute('SELECT temp_id FROM temp_registrations WHERE temp_id = ?', (temp_id,))
+            result = cursor.fetchone()
+            
+            if result:
+                logger.info(f"✅ Test temp registration inserted successfully: {temp_id}")
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Test temp registration inserted successfully',
+                    'temp_id': temp_id,
+                    'email': email
+                })
+            else:
+                logger.error(f"❌ Test temp registration verification failed: {temp_id}")
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Insertion verification failed'
+                }), 500
+                
+        except sqlite3.Error as e:
+            logger.error(f"❌ Database error in test temp insert: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Database error: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Test temp insert error: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
