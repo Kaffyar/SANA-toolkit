@@ -53,29 +53,43 @@ logger = logging.getLogger(__name__)
 def create_app():
     app = Flask(__name__)
     
-    # ===== Session Configuration =====
-    # Use a persistent secret key to prevent session invalidation on app restart
-    secret_key_file = 'secret_key.txt'
-    try:
-        with open(secret_key_file, 'r') as f:
-            app.secret_key = f.read().strip()
-    except FileNotFoundError:
-        # Generate a new secret key if file doesn't exist
-        app.secret_key = secrets.token_hex(32)
-        with open(secret_key_file, 'w') as f:
-            f.write(app.secret_key)
-        logger.info("Generated new persistent secret key")
+    # ===== Enhanced Session Configuration for Cloud Deployment =====
+    # Use environment variable for secret key or generate a persistent one
+    secret_key = os.environ.get('FLASK_SECRET_KEY')
+    if not secret_key:
+        secret_key_file = 'secret_key.txt'
+        try:
+            with open(secret_key_file, 'r') as f:
+                secret_key = f.read().strip()
+        except FileNotFoundError:
+            # Generate a new secret key if file doesn't exist
+            secret_key = secrets.token_hex(32)
+            with open(secret_key_file, 'w') as f:
+                f.write(secret_key)
+            logger.info("Generated new persistent secret key")
     
-    app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['SESSION_PERMANENT'] = False
-    app.config['SESSION_USE_SIGNER'] = True
-    app.config['SESSION_KEY_PREFIX'] = 'sana:'
-    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-
-    # Session security settings
-    app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.secret_key = secret_key
+    
+    # Enhanced session configuration for cloud platforms
+    app.config.update(
+        # Use signed cookies instead of filesystem sessions for cloud compatibility
+        SESSION_TYPE='null',  # Use Flask's built-in signed cookie sessions
+        SESSION_PERMANENT=True,  # Make sessions permanent by default
+        SESSION_USE_SIGNER=True,  # Sign session cookies for security
+        SESSION_KEY_PREFIX='sana_',  # Prefix for session keys
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=24),  # 24 hour session lifetime
+        
+        # Enhanced cookie security settings
+        SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV') == 'production',  # HTTPS only in production
+        SESSION_COOKIE_HTTPONLY=True,  # Prevent XSS attacks
+        SESSION_COOKIE_SAMESITE='Lax',  # CSRF protection
+        SESSION_COOKIE_DOMAIN=None,  # Allow all domains
+        SESSION_COOKIE_PATH='/',  # Available on all paths
+        
+        # Additional security settings
+        SESSION_REFRESH_EACH_REQUEST=True,  # Refresh session on each request
+        SESSION_COOKIE_MAX_AGE=86400,  # 24 hours in seconds
+    )
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')

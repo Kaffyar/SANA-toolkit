@@ -157,7 +157,7 @@ def get_client_ip() -> str:
     return request.environ.get('REMOTE_ADDR', 'Unknown')
 
 def validate_otp_session() -> Tuple[bool, Optional[str], Dict[str, Any]]:
-    """Validate OTP session with debugging"""
+    """Validate OTP session with enhanced debugging for cloud deployment"""
     
     # Enhanced debugging with session ID and client info
     client_info = get_client_info()
@@ -167,6 +167,13 @@ def validate_otp_session() -> Tuple[bool, Optional[str], Dict[str, Any]]:
     logger.info(f"🔍 Session debug - otp_type: {session.get('otp_type')}")
     logger.info(f"🔍 Session debug - otp_sent_at: {session.get('otp_sent_at')}")
     logger.info(f"🔍 Session debug - Session ID: {session.get('_id', 'No session ID')}")
+    logger.info(f"🔍 Session debug - Session modified: {session.modified}")
+    logger.info(f"🔍 Session debug - Session permanent: {session.permanent}")
+    
+    # Check if session is completely empty (common issue in cloud deployments)
+    if not session:
+        logger.warning(f"❌ Empty session for {client_info['ip_address']}")
+        return False, 'Session not found. Please start over.', {}
     
     required_keys = ['otp_email', 'otp_type']
     
@@ -188,6 +195,9 @@ def validate_otp_session() -> Tuple[bool, Optional[str], Dict[str, Any]]:
             logger.warning(f"Invalid OTP timestamp in session: {e}")
             clear_otp_session()
             return False, 'Invalid session data. Please start over.', {}
+    
+    # Mark session as modified to ensure it gets saved
+    session.modified = True
     
     return True, None, {
         'email': session['otp_email'],
@@ -297,14 +307,20 @@ def send_login_otp():
         success, message = user_manager.send_login_otp(email)
         
         if success:
-            # Update session
+            # Update session with enhanced cloud deployment support
             session['otp_email'] = email
             session['otp_type'] = 'login'
             session['otp_sent_at'] = datetime.now().isoformat()
+            session['session_created'] = datetime.now().isoformat()
             
-            # Log successful OTP send
+            # Ensure session is marked as modified and permanent
+            session.modified = True
+            session.permanent = True
+            
+            # Log successful OTP send with session info
             client_info = get_client_info()
             logger.info(f"🔐 Login OTP sent to {email} from {client_info['ip_address']}")
+            logger.info(f"🔐 Session keys after OTP send: {list(session.keys())}")
             
             return jsonify(create_success_response(
                 'Verification code sent to your email',
@@ -370,16 +386,22 @@ def send_signup_otp():
         success, message, temp_id = user_manager.send_signup_otp(email)
         
         if success:
-            # Store signup data in session
+            # Store signup data in session with enhanced cloud deployment support
             session['otp_email'] = email
             session['otp_type'] = 'signup'
             session['otp_sent_at'] = datetime.now().isoformat()
             session['temp_user_id'] = temp_id
             session['signup_password'] = password
+            session['session_created'] = datetime.now().isoformat()
             
-            # Log successful OTP send
+            # Ensure session is marked as modified and permanent
+            session.modified = True
+            session.permanent = True
+            
+            # Log successful OTP send with session info
             client_info = get_client_info()
             logger.info(f"📧 Signup OTP sent to {email} from {client_info['ip_address']}")
+            logger.info(f"📧 Session keys after signup OTP send: {list(session.keys())}")
             
             return jsonify(create_success_response(
                 'Verification code sent to your email',
@@ -427,7 +449,7 @@ def verify_otp():
                 # Get user info
                 user = user_manager.get_user_by_email(email)
                 if user:
-                    # Create secure session
+                    # Create secure session with enhanced cloud deployment support
                     session.clear()  # Clear all previous session data
                     session['user_id'] = user['user_id']
                     session['user_email'] = user['email']
@@ -435,6 +457,10 @@ def verify_otp():
                     session['login_time'] = datetime.now().isoformat()
                     session['last_activity'] = datetime.now().isoformat()
                     session['session_id'] = secrets.token_urlsafe(32)
+                    
+                    # Ensure session is marked as modified and permanent
+                    session.modified = True
+                    session.permanent = True
                     
                     # Get safe redirect URL
                     next_url = session.pop('next_url', None)
