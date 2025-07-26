@@ -340,6 +340,9 @@ class UserManager:
             return False, "Account is temporarily locked"
         
         try:
+            # FIXED: Use identifier column instead of user_id
+            user_identifier = str(user['user_id'])  # Convert user_id to string for identifier
+            
             # Check for recent OTP to prevent spam
             conn = self.create_connection()
             if conn:
@@ -347,14 +350,14 @@ class UserManager:
                     cursor = conn.cursor()
                     cursor.execute('''
                         SELECT created_at FROM user_otp 
-                        WHERE user_id = ? AND otp_type = 'login' AND is_used = FALSE AND expires_at > ?
+                        WHERE identifier = ? AND otp_type = 'login' AND is_used = FALSE AND expires_at > ?
                         ORDER BY created_at DESC LIMIT 1
-                    ''', (user['user_id'], datetime.now()))
+                    ''', (user_identifier, datetime.now()))
                     
                     recent_otp = cursor.fetchone()
                     if recent_otp:
-                        otp_time = datetime.fromisoformat(recent_otp['created_at'])
-                        if datetime.now() - otp_time < timedelta(seconds=self.otp_rate_limit_seconds):
+                        otp_time = datetime.fromisoformat(recent_otp[0])  # created_at is first column
+                        if datetime.now() - otp_time < timedelta(seconds=60):  # 1 minute cooldown
                             logger.info(f"🔄 Recent login OTP exists for {email}, not sending duplicate")
                             return True, "OTP sent successfully"
                 finally:
@@ -363,8 +366,8 @@ class UserManager:
             # Generate and send OTP
             otp_code = self.otp_service.generate_otp()
             
-            # Save OTP to database first
-            if not self.otp_service.save_otp_to_db(user['user_id'], otp_code, 'login'):
+            # FIXED: Save OTP to database using identifier
+            if not self.otp_service.save_otp_to_db(user_identifier, otp_code, 'login'):
                 return False, "Failed to save OTP"
             
             # Send OTP email
@@ -546,8 +549,11 @@ class UserManager:
         if not user:
             return False, "User not found"
         
+        # FIXED: Use identifier instead of user_id for OTP verification
+        user_identifier = str(user['user_id'])  # Convert user_id to string for identifier
+        
         # Verify OTP using service
-        if self.otp_service.verify_otp(user['user_id'], otp_code, 'login'):
+        if self.otp_service.verify_otp(user_identifier, otp_code, 'login'):
             # Update last login and reset failed attempts
             self.update_last_login(user['user_id'])
             self.reset_login_attempts(user['user_id'])  # FIXED: Reset on successful login
