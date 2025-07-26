@@ -412,94 +412,137 @@ def send_signup_otp():
         if user_manager.user_exists(email):
             return jsonify(create_error_response('An account with this email already exists')), 409
         
-        # Check for duplicate requests
-        current_email_in_session = session.get('otp_email')
-        if current_email_in_session == email and 'otp_sent_at' in session:
-            try:
-                sent_time = datetime.fromisoformat(session['otp_sent_at'])
-                if datetime.now() - sent_time < timedelta(seconds=AuthConfig.RESEND_COOLDOWN_SECONDS):
-                    logger.info(f"🔄 Ignoring duplicate signup OTP request for {email}")
-                    return jsonify(create_success_response(
-                        'Verification code already sent to your email',
-                        url_for('auth.verify_otp_page')
-                    ))
-            except (ValueError, TypeError) as e:
-                logger.warning(f"Error checking OTP timestamp: {e}")
+        # FIXED: Request deduplication to prevent session conflicts
+        if not is_request_allowed(email):
+            logger.warning(f"🔄 Duplicate signup request blocked for {email}")
+            return jsonify(create_error_response('Please wait before trying again')), 429
         
-        # Clear any old session data before sending new OTP
-        clear_otp_session()
+                # Set request lock
+        set_request_lock(email, True)
         
-        # FIXED: Enhanced logging for signup process
-        client_info = get_client_info()
-        logger.info(f"🚀 Starting signup process for {email} from {client_info['ip_address']}")
-        
-        # Send signup OTP with enhanced logging
-        logger.info(f"📧 Calling user_manager.send_signup_otp for {email}")
-        success, message, temp_id = user_manager.send_signup_otp(email, password)
-        
-        if success:
-            logger.info(f"✅ Signup OTP sent successfully for {email}")
-            logger.info(f"✅ Generated temp_id: {temp_id}")
+        try:
+            # FIXED: Enhanced duplicate request prevention
+            current_email_in_session = session.get('otp_email')
+            current_temp_id = session.get('temp_user_id')
             
-            # FIXED: Verify database insertion immediately
-            logger.info(f"🔍 Verifying database insertion for temp_id: {temp_id}")
-            db_temp_id = user_manager.find_temp_id_by_email(email)
-            if db_temp_id:
-                logger.info(f"✅ Database verification successful: temp_id {db_temp_id} found in database")
+            if current_email_in_session == email and 'otp_sent_at' in session:
+                try:
+                    sent_time = datetime.fromisoformat(session['otp_sent_at'])
+                    time_diff = datetime.now() - sent_time
+                    
+                    if time_diff < timedelta(seconds=AuthConfig.RESEND_COOLDOWN_SECONDS):
+                        logger.info(f"🔄 Ignoring duplicate signup OTP request for {email} (cooldown: {time_diff.total_seconds():.1f}s)")
+                        return jsonify(create_success_response(
+                            'Verification code already sent to your email',
+                            url_for('auth.verify_otp_page')
+                        ))
+                    else:
+                        logger.info(f"🔄 Resending OTP for {email} after cooldown period")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Error checking OTP timestamp: {e}")
+            
+            # FIXED: Clear any old session data before sending new OTP
+            logger.info(f"🧹 Clearing old session data for {email}")
+            clear_otp_session()
+            
+            # FIXED: Enhanced logging for signup process
+            client_info = get_client_info()
+            logger.info(f"🚀 Starting signup process for {email} from {client_info['ip_address']}")
+            
+            # Send signup OTP with enhanced logging
+            logger.info(f"📧 Calling user_manager.send_signup_otp for {email}")
+            success, message, temp_id = user_manager.send_signup_otp(email, password)
+            
+            if success:
+                logger.info(f"✅ Signup OTP sent successfully for {email}")
+                logger.info(f"✅ Generated temp_id: {temp_id}")
+                
+                # FIXED: Verify database insertion immediately
+                logger.info(f"🔍 Verifying database insertion for temp_id: {temp_id}")
+                db_temp_id = user_manager.find_temp_id_by_email(email)
+                if db_temp_id:
+                    logger.info(f"✅ Database verification successful: temp_id {db_temp_id} found in database")
+                    
+                    # FIXED: Ensure temp_id consistency
+                    if db_temp_id != temp_id:
+                        logger.warning(f"⚠️ Temp ID mismatch! Generated: {temp_id}, Database: {db_temp_id}")
+                        # Use the database temp_id to ensure consistency
+                        temp_id = db_temp_id
+                        logger.info(f"🔄 Using database temp_id: {temp_id}")
+                else:
+                    logger.error(f"❌ CRITICAL: Database verification failed - temp_id not found in database!")
+                    logger.error(f"❌ Expected temp_id: {temp_id}")
+                    logger.error(f"❌ Email: {email}")
+                    return jsonify(create_error_response('Database verification failed. Please try again.')), 500
+                
+                # FIXED: Enhanced session management with consistency checks
+                try:
+                    # Clear any existing session data first
+                    clear_otp_session()
+                    
+                    # Set new session data with the verified temp_id
+                    session['otp_email'] = email
+                    session['otp_type'] = 'signup'
+                    session['otp_sent_at'] = datetime.now().isoformat()
+                    session['temp_user_id'] = temp_id  # Use the verified temp_id
+                    session['signup_password'] = password
+                    session['session_created'] = datetime.now().isoformat()
+                    session['client_ip'] = client_info['ip_address']
+                    session['user_agent'] = client_info['user_agent']
+                    
+                    # Force session to be modified and permanent
+                    session.modified = True
+                    session.permanent = True
+                    
+                    # FIXED: Immediate session verification
+                    logger.info(f"📧 Session data set successfully:")
+                    logger.info(f"   - Session keys: {list(session.keys())}")
+                    logger.info(f"   - Session modified: {session.modified}")
+                    logger.info(f"   - Session permanent: {session.permanent}")
+                    logger.info(f"   - otp_email: {session.get('otp_email')}")
+                    logger.info(f"   - otp_type: {session.get('otp_type')}")
+                    logger.info(f"   - temp_user_id: {session.get('temp_user_id')}")
+                    
+                    # FIXED: Verify session data consistency
+                    session_temp_id = session.get('temp_user_id')
+                    if session_temp_id != temp_id:
+                        logger.error(f"❌ CRITICAL: Session temp_id mismatch! Expected: {temp_id}, Session: {session_temp_id}")
+                        return jsonify(create_error_response('Session data inconsistency. Please try again.')), 500
+                    
+                    # Test session persistence immediately
+                    test_session_data = {
+                        'otp_email': session.get('otp_email'),
+                        'otp_type': session.get('otp_type'),
+                        'temp_user_id': session.get('temp_user_id'),
+                        'session_created': session.get('session_created')
+                    }
+                    logger.info(f"📧 Session test data: {test_session_data}")
+                    
+                    # FIXED: Final verification that session has correct temp_id
+                    if session.get('temp_user_id') == temp_id:
+                        logger.info(f"✅ Session verification successful - temp_id matches: {temp_id}")
+                    else:
+                        logger.error(f"❌ Session verification failed - temp_id mismatch!")
+                        return jsonify(create_error_response('Session verification failed. Please try again.')), 500
+                    
+                except Exception as session_error:
+                    logger.error(f"❌ Session error during signup OTP send: {session_error}")
+                    return jsonify(create_error_response('Session error. Please try again.')), 500
+                
+                return jsonify(create_success_response(
+                    'Verification code sent to your email',
+                    url_for('auth.verify_otp_page')
+                ))
             else:
-                logger.error(f"❌ CRITICAL: Database verification failed - temp_id not found in database!")
-                logger.error(f"❌ Expected temp_id: {temp_id}")
-                logger.error(f"❌ Email: {email}")
-                # Continue anyway - we'll use session data
-            
-            # Try to update session with comprehensive debugging
-            try:
-                # Clear any existing session data first
-                clear_otp_session()
+                logger.error(f"❌ Signup OTP send failed for {email}: {message}")
+                return jsonify(create_error_response(message)), 400
                 
-                # Set new session data
-                session['otp_email'] = email
-                session['otp_type'] = 'signup'
-                session['otp_sent_at'] = datetime.now().isoformat()
-                session['temp_user_id'] = temp_id
-                session['signup_password'] = password
-                session['session_created'] = datetime.now().isoformat()
-                session['client_ip'] = client_info['ip_address']
-                session['user_agent'] = client_info['user_agent']
-                
-                # Force session to be modified and permanent
-                session.modified = True
-                session.permanent = True
-                
-                # Log detailed session information
-                logger.info(f"📧 Session data set successfully:")
-                logger.info(f"   - Session keys: {list(session.keys())}")
-                logger.info(f"   - Session modified: {session.modified}")
-                logger.info(f"   - Session permanent: {session.permanent}")
-                logger.info(f"   - otp_email: {session.get('otp_email')}")
-                logger.info(f"   - otp_type: {session.get('otp_type')}")
-                logger.info(f"   - temp_user_id: {session.get('temp_user_id')}")
-                
-                # Test session persistence immediately
-                test_session_data = {
-                    'otp_email': session.get('otp_email'),
-                    'otp_type': session.get('otp_type'),
-                    'temp_user_id': session.get('temp_user_id'),
-                    'session_created': session.get('session_created')
-                }
-                logger.info(f"📧 Session test data: {test_session_data}")
-                
-            except Exception as session_error:
-                logger.error(f"❌ Session error during signup OTP send: {session_error}")
-                # Continue anyway - we'll use database fallback
-            
-            return jsonify(create_success_response(
-                'Verification code sent to your email',
-                url_for('auth.verify_otp_page')
-            ))
-        else:
-            logger.error(f"❌ Signup OTP send failed for {email}: {message}")
-            return jsonify(create_error_response(message)), 400
+        except Exception as e:
+            logger.error(f"Error sending signup OTP: {str(e)}")
+            return jsonify(create_error_response('An error occurred. Please try again.')), 500
+        finally:
+            # Release request lock
+            set_request_lock(email, False)
             
     except Exception as e:
         logger.error(f"Error sending signup OTP: {str(e)}")
@@ -604,6 +647,28 @@ def verify_otp():
             if not temp_id or not password:
                 return jsonify(create_error_response(
                     'Invalid registration session. Please start over.',
+                    url_for('auth.signup')
+                )), 400
+            
+            # FIXED: Enhanced temp_id validation and fallback
+            logger.info(f"🔍 Verifying signup OTP with temp_id: {temp_id}")
+            
+            # Check if temp_id exists in database
+            db_temp_id = user_manager.find_temp_id_by_email(email)
+            if db_temp_id and db_temp_id != temp_id:
+                logger.warning(f"⚠️ Session temp_id mismatch! Session: {temp_id}, Database: {db_temp_id}")
+                # Use the database temp_id as it's more reliable
+                temp_id = db_temp_id
+                logger.info(f"🔄 Using database temp_id: {temp_id}")
+                
+                # Update session with correct temp_id
+                session['temp_user_id'] = temp_id
+                session.modified = True
+                
+            elif not db_temp_id:
+                logger.error(f"❌ No temp_registration found in database for email: {email}")
+                return jsonify(create_error_response(
+                    'Registration session expired. Please start over.',
                     url_for('auth.signup')
                 )), 400
                 
@@ -1255,6 +1320,36 @@ def test_temp_insert():
             'status': 'error',
             'message': str(e)
         }), 500
+
+# FIXED: Add request deduplication to prevent session conflicts
+_request_locks = {}
+
+def get_request_lock(email):
+    """Get or create a lock for a specific email to prevent concurrent requests"""
+    if email not in _request_locks:
+        _request_locks[email] = {'lock': False, 'last_request': None}
+    return _request_locks[email]
+
+def is_request_allowed(email):
+    """Check if a request is allowed (not too frequent)"""
+    lock_info = get_request_lock(email)
+    if lock_info['lock']:
+        return False
+    
+    # Check if last request was too recent
+    if lock_info['last_request']:
+        time_diff = datetime.now() - lock_info['last_request']
+        if time_diff < timedelta(seconds=2):  # 2 second minimum between requests
+            return False
+    
+    return True
+
+def set_request_lock(email, locked=True):
+    """Set or release the lock for a specific email"""
+    lock_info = get_request_lock(email)
+    lock_info['lock'] = locked
+    if locked:
+        lock_info['last_request'] = datetime.now()
 
 # Initialize database on first import with error handling
 try:
