@@ -16,8 +16,20 @@ logger = logging.getLogger(__name__)
 class DatabaseInitializer:
     def __init__(self, db_path='data/sana_toolkit.db'):
         self.db_path = db_path
+        # FIXED: Enhanced path handling for production environments
+        if os.environ.get('RENDER') == 'true' or os.environ.get('FLASK_ENV') == 'production':
+            # For production, ensure we use absolute paths
+            if not os.path.isabs(db_path):
+                # Use current working directory for production
+                self.db_path = os.path.join(os.getcwd(), db_path)
+            logger.info(f"🌐 Production environment detected - using database path: {self.db_path}")
+        else:
+            # For development, use relative path
+            logger.info(f"🔧 Development environment - using database path: {self.db_path}")
+        
         # Ensure data directory exists
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        logger.info(f"📁 Ensured data directory exists: {os.path.dirname(self.db_path)}")
         
     def create_connection(self):
         """Create a database connection with proper error handling"""

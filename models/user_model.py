@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 import time
 from typing import Tuple, Optional, Dict, Any
+import os
 
 # Import your EmailOTPService
 try:
@@ -24,8 +25,19 @@ logger = logging.getLogger(__name__)
 
 class UserManager:
     def __init__(self, db_path='data/sana_toolkit.db'):
-        self.db_path = db_path
-        self.otp_service = EmailOTPService(db_path)
+        # FIXED: Enhanced path handling for production environments
+        if os.environ.get('RENDER') == 'true' or os.environ.get('FLASK_ENV') == 'production':
+            # For production, ensure we use absolute paths
+            if not os.path.isabs(db_path):
+                # Use current working directory for production
+                self.db_path = os.path.join(os.getcwd(), db_path)
+            logger.info(f"🌐 Production environment detected - UserManager using database path: {self.db_path}")
+        else:
+            # For development, use relative path
+            self.db_path = db_path
+            logger.info(f"🔧 Development environment - UserManager using database path: {self.db_path}")
+        
+        self.otp_service = EmailOTPService(self.db_path)
         
         # FIXED: Compile regex patterns once for better performance
         self.email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -382,6 +394,8 @@ class UserManager:
             logger.warning(f"❌ User already exists: {email}")
             return False, "An account with this email already exists", None
         
+        # FIXED: Enhanced database connection with better error handling
+        logger.info(f"🔌 Creating database connection for {email}")
         conn = self.create_connection()
         if not conn:
             logger.error(f"❌ Database connection failed for {email}")
@@ -400,38 +414,71 @@ class UserManager:
             temp_id = f"temp_{int(time.time())}_{secrets.token_hex(4)}"
             logger.info(f"🆔 Generated temp_id: {temp_id} for {email}")
             
-            # Store temporary registration with password (if provided)
-            if password:
-                logger.info(f"🔐 Storing temp registration with password for {email}")
-                # Hash the password temporarily for storage
-                temp_password_hash = generate_password_hash(password)
-                cursor.execute('''
-                    INSERT INTO temp_registrations 
-                    (temp_id, email, password_hash, created_at, expires_at)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (temp_id, email, temp_password_hash, datetime.now(), 
-                      datetime.now() + timedelta(minutes=20)))
-            else:
-                logger.info(f"🔐 Storing temp registration without password for {email}")
-                cursor.execute('''
-                    INSERT INTO temp_registrations 
-                    (temp_id, email, created_at, expires_at)
-                    VALUES (?, ?, ?, ?)
-                ''', (temp_id, email, datetime.now(), 
-                      datetime.now() + timedelta(minutes=20)))
+            # FIXED: Enhanced temp_registrations insertion with better error handling
+            try:
+                # Store temporary registration with password (if provided)
+                if password:
+                    logger.info(f"🔐 Storing temp registration with password for {email}")
+                    # Hash the password temporarily for storage
+                    temp_password_hash = generate_password_hash(password)
+                    cursor.execute('''
+                        INSERT INTO temp_registrations 
+                        (temp_id, email, password_hash, created_at, expires_at)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (temp_id, email, temp_password_hash, datetime.now(), 
+                          datetime.now() + timedelta(minutes=20)))
+                else:
+                    logger.info(f"🔐 Storing temp registration without password for {email}")
+                    cursor.execute('''
+                        INSERT INTO temp_registrations 
+                        (temp_id, email, created_at, expires_at)
+                        VALUES (?, ?, ?, ?)
+                    ''', (temp_id, email, datetime.now(), 
+                          datetime.now() + timedelta(minutes=20)))
+                
+                # Commit the transaction immediately
+                logger.info(f"💾 Committing temp_registrations insert for {email}")
+                conn.commit()
+                logger.info(f"✅ Temp registration committed successfully for {email}")
+                
+            except sqlite3.IntegrityError as e:
+                logger.error(f"❌ Integrity error during temp_registrations insert for {email}: {e}")
+                conn.rollback()
+                return False, "Database integrity error during signup", None
+            except sqlite3.Error as e:
+                logger.error(f"❌ SQLite error during temp_registrations insert for {email}: {e}")
+                conn.rollback()
+                return False, "Database error during signup", None
             
-            # Commit the transaction
-            logger.info(f"💾 Committing temp_registrations insert for {email}")
-            conn.commit()
-            logger.info(f"✅ Temp registration committed successfully for {email}")
+            # FIXED: Enhanced verification with multiple checks
+            logger.info(f"🔍 Verifying database insertion for temp_id: {temp_id}")
             
-            # Verify the insertion immediately
+            # Check 1: Direct temp_id lookup
             cursor.execute('SELECT temp_id FROM temp_registrations WHERE temp_id = ?', (temp_id,))
             verification_result = cursor.fetchone()
             if verification_result:
-                logger.info(f"✅ Database verification: temp_id {temp_id} found in temp_registrations")
+                logger.info(f"✅ Database verification 1: temp_id {temp_id} found in temp_registrations")
             else:
-                logger.error(f"❌ CRITICAL: Database verification failed - temp_id {temp_id} not found after insert!")
+                logger.error(f"❌ CRITICAL: Database verification 1 failed - temp_id {temp_id} not found after insert!")
+                return False, "Database verification failed", None
+            
+            # Check 2: Email lookup
+            cursor.execute('SELECT temp_id FROM temp_registrations WHERE email = ?', (email,))
+            email_verification = cursor.fetchone()
+            if email_verification:
+                logger.info(f"✅ Database verification 2: email {email} found in temp_registrations")
+            else:
+                logger.error(f"❌ CRITICAL: Database verification 2 failed - email {email} not found after insert!")
+                return False, "Database verification failed", None
+            
+            # Check 3: Count verification
+            cursor.execute('SELECT COUNT(*) FROM temp_registrations WHERE email = ?', (email,))
+            count_verification = cursor.fetchone()[0]
+            if count_verification > 0:
+                logger.info(f"✅ Database verification 3: {count_verification} temp_registrations found for {email}")
+            else:
+                logger.error(f"❌ CRITICAL: Database verification 3 failed - no temp_registrations found for {email}")
+                return False, "Database verification failed", None
             
             # Close the connection before OTP operations
             conn.close()
@@ -482,10 +529,16 @@ class UserManager:
         except sqlite3.Error as e:
             logger.error(f"❌ Database error sending signup OTP for {email}: {e}")
             return False, "Database error during signup", None
+        except Exception as e:
+            logger.error(f"❌ Unexpected error sending signup OTP for {email}: {e}")
+            return False, "Unexpected error during signup", None
         finally:
             if conn:
                 logger.info(f"🔌 Closing database connection in finally block for {email}")
-                conn.close()
+                try:
+                    conn.close()
+                except Exception as e:
+                    logger.error(f"❌ Error closing database connection: {e}")
     
     def verify_login_otp(self, email: str, otp_code: str) -> Tuple[bool, str]:
         """Verify OTP for login with comprehensive validation"""
