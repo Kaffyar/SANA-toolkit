@@ -646,6 +646,10 @@ def verify_otp_database_fallback():
             otp_type = 'login'
             success, message = user_manager.verify_login_otp(email, otp_code)
         else:
+            # Check if this is a signup attempt for an existing user
+            if data.get('temp_user_id') and not user_manager.find_temp_id_by_email(email):
+                logger.warning(f"⚠️ Signup attempt for existing user {email}")
+                return jsonify(create_error_response('Account already exists. Please use login instead.')), 400
             logger.info(f"🔄 User does not exist, treating as signup")
             otp_type = 'signup'
             # For signup, we need temp_id - try to get from request or database
@@ -660,7 +664,7 @@ def verify_otp_database_fallback():
                 
                 if not temp_id:
                     logger.warning(f"⚠️ No temp_id found for signup verification of {email}")
-                    return jsonify(create_error_response('Signup verification requires temp_user_id. Please try the signup process again.')), 400
+                    return jsonify(create_error_response('Account already exists. Please use login instead.')), 400
                 else:
                     logger.info(f"✅ Found temp_id {temp_id} for {email} in database")
             
