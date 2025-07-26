@@ -80,7 +80,7 @@ class DatabaseInitializer:
         create_otp_sql = """
         CREATE TABLE IF NOT EXISTS user_otp (
             otp_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
+            identifier TEXT NOT NULL,  -- Can be user_id OR temp_id
             otp_code TEXT NOT NULL CHECK (length(otp_code) = 6),
             otp_type TEXT DEFAULT 'login' NOT NULL CHECK (otp_type IN ('login', 'signup')),
             is_used BOOLEAN DEFAULT FALSE NOT NULL,
@@ -99,6 +99,29 @@ class DatabaseInitializer:
                 with conn:
                     cursor = conn.cursor()
                     cursor.execute(create_otp_sql)
+                    
+                    # Migration: Handle existing databases with user_id column
+                    try:
+                        # Check if user_id column exists (old schema)
+                        cursor.execute("PRAGMA table_info(user_otp)")
+                        columns = [col[1] for col in cursor.fetchall()]
+                        
+                        if 'user_id' in columns and 'identifier' not in columns:
+                            # Migrate from user_id to identifier
+                            logger.info("🔄 Migrating user_otp table from user_id to identifier column")
+                            cursor.execute("ALTER TABLE user_otp ADD COLUMN identifier TEXT")
+                            cursor.execute("UPDATE user_otp SET identifier = user_id WHERE identifier IS NULL")
+                            logger.info("✅ Successfully migrated user_otp table")
+                        elif 'user_id' in columns and 'identifier' in columns:
+                            # Both columns exist, clean up old user_id column
+                            logger.info("🧹 Cleaning up old user_id column from user_otp table")
+                            # Note: SQLite doesn't support DROP COLUMN directly, so we'll leave it for now
+                            # The identifier column will be used going forward
+                            logger.info("✅ user_otp table migration completed")
+                            
+                    except sqlite3.OperationalError as e:
+                        logger.info(f"ℹ️ No migration needed for user_otp table: {e}")
+                    
                 logger.info("✅ User OTP table created successfully")
                 return True
             except sqlite3.Error as e:

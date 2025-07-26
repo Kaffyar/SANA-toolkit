@@ -50,7 +50,7 @@ class EmailOTPService:
             logger.error(f"Database connection error: {e}")
             return None
     
-    def save_otp_to_db(self, user_id, otp_code, otp_type='login'):
+    def save_otp_to_db(self, identifier, otp_code, otp_type='login'):
         """Save OTP to database with improved transaction handling"""
         conn = self.create_connection()
         if not conn:
@@ -63,33 +63,33 @@ class EmailOTPService:
                 # Check for recent OTPs first to avoid duplicates
                 cursor.execute('''
                     SELECT otp_id, created_at FROM user_otp 
-                    WHERE user_id = ? AND otp_type = ? AND is_used = FALSE AND expires_at > ?
+                    WHERE identifier = ? AND otp_type = ? AND is_used = FALSE AND expires_at > ?
                     ORDER BY created_at DESC LIMIT 1
-                ''', (user_id, otp_type, datetime.now()))
+                ''', (identifier, otp_type, datetime.now()))
                 
                 recent_otp = cursor.fetchone()
                 
                 if recent_otp and recent_otp['created_at']:
                     otp_time = datetime.fromisoformat(recent_otp['created_at'])
                     if datetime.now() - otp_time < timedelta(seconds=self.rate_limit_seconds):
-                        logger.info(f"Rate limited: Recent OTP exists for user {user_id}, type {otp_type}")
+                        logger.info(f"Rate limited: Recent OTP exists for identifier {identifier}, type {otp_type}")
                         return True
                 
                 # Clean up expired and old OTPs
                 cursor.execute('''
                     DELETE FROM user_otp 
-                    WHERE (user_id = ? AND otp_type = ? AND is_used = FALSE) 
+                    WHERE (identifier = ? AND otp_type = ? AND is_used = FALSE) 
                     OR expires_at < datetime('now')
-                ''', (user_id, otp_type))
+                ''', (identifier, otp_type))
                 
                 # Create new OTP
                 expires_at = datetime.now() + timedelta(minutes=10)
                 cursor.execute('''
-                    INSERT INTO user_otp (user_id, otp_code, otp_type, expires_at, created_at)
+                    INSERT INTO user_otp (identifier, otp_code, otp_type, expires_at, created_at)
                     VALUES (?, ?, ?, ?, ?)
-                ''', (user_id, otp_code, otp_type, expires_at, datetime.now()))
+                ''', (identifier, otp_code, otp_type, expires_at, datetime.now()))
                 
-                logger.info(f"OTP saved for user {user_id}, type {otp_type}")
+                logger.info(f"OTP saved for identifier {identifier}, type {otp_type}")
                 return True
                 
         except sqlite3.Error as e:
@@ -274,9 +274,9 @@ class EmailOTPService:
         </html>
         """
     
-    def verify_otp(self, user_id, otp_code, otp_type='login'):
+    def verify_otp(self, identifier, otp_code, otp_type='login'):
         """Verify OTP code with improved error handling"""
-        logger.info(f"🔍 DEBUG: OTP service verify_otp called with user_id={user_id}, otp_code={otp_code}, otp_type={otp_type}")
+        logger.info(f"🔍 DEBUG: OTP service verify_otp called with identifier={identifier}, otp_code={otp_code}, otp_type={otp_type}")
         
         conn = self.create_connection()
         if not conn:
@@ -287,34 +287,34 @@ class EmailOTPService:
             with conn:  # FIXED: Use context manager
                 cursor = conn.cursor()
                 
-                # First, let's see what OTPs exist for this user
+                # First, let's see what OTPs exist for this identifier
                 cursor.execute('''
                     SELECT otp_id, otp_code, otp_type, is_used, expires_at 
                     FROM user_otp 
-                    WHERE user_id = ? AND otp_type = ?
-                ''', (user_id, otp_type))
+                    WHERE identifier = ? AND otp_type = ?
+                ''', (identifier, otp_type))
                 
                 all_otps = cursor.fetchall()
-                logger.info(f"🔍 Found {len(all_otps)} OTPs for user_id={user_id}, type={otp_type}")
+                logger.info(f"🔍 Found {len(all_otps)} OTPs for identifier={identifier}, type={otp_type}")
                 for otp in all_otps:
                     logger.info(f"🔍 OTP: id={otp['otp_id']}, code={otp['otp_code']}, used={otp['is_used']}, expires={otp['expires_at']}")
                 
                 # Now check for the specific OTP
                 cursor.execute('''
                     SELECT otp_id FROM user_otp 
-                    WHERE user_id = ? AND otp_code = ? AND otp_type = ? 
+                    WHERE identifier = ? AND otp_code = ? AND otp_type = ? 
                     AND is_used = FALSE AND expires_at > ?
-                ''', (user_id, otp_code, otp_type, datetime.now()))
+                ''', (identifier, otp_code, otp_type, datetime.now()))
                 
                 result = cursor.fetchone()
                 
                 if result:
                     # Mark OTP as used
                     cursor.execute('UPDATE user_otp SET is_used = TRUE WHERE otp_id = ?', (result['otp_id'],))
-                    logger.info(f"✅ OTP verified successfully for user {user_id}, type {otp_type}")
+                    logger.info(f"✅ OTP verified successfully for identifier {identifier}, type {otp_type}")
                     return True
                 else:
-                    logger.warning(f"❌ OTP verification failed for user {user_id}, type {otp_type}, code {otp_code}")
+                    logger.warning(f"❌ OTP verification failed for identifier {identifier}, type {otp_type}, code {otp_code}")
                     return False
                     
         except sqlite3.Error as e:
