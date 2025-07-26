@@ -338,6 +338,42 @@ class DatabaseInitializer:
                 conn.close()
         return False
     
+    def force_clean_database_rebuild(self):
+        """Force complete database rebuild when schema is corrupted"""
+        try:
+            # Check if we can read basic schema
+            conn = self.create_connection()
+            if conn:
+                cursor = conn.cursor()
+                # Test critical tables
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_otp'")
+                result = cursor.fetchone()
+                if result:
+                    # Test if identifier column exists properly
+                    cursor.execute("PRAGMA table_info(user_otp)")
+                    columns = [col[1] for col in cursor.fetchall()]
+                    if 'identifier' not in columns:
+                        logger.warning("⚠️ user_otp table missing identifier column")
+                        raise sqlite3.Error("Schema corruption detected")
+                conn.close()
+        except sqlite3.Error as e:
+            logger.error(f"❌ Database schema is corrupted: {e}")
+            logger.info("🔄 Forcing complete database rebuild...")
+            
+            # Backup existing database
+            if os.path.exists(self.db_path):
+                backup_path = f"{self.db_path}.corrupted.{int(time.time())}"
+                try:
+                    import shutil
+                    shutil.move(self.db_path, backup_path)
+                    logger.info(f"📦 Backed up corrupted database to: {backup_path}")
+                except Exception:
+                    os.remove(self.db_path)
+                    logger.info("🗑️ Removed corrupted database file")
+            
+            return True  # Indicate rebuild is needed
+        return False  # No rebuild needed
+
     def force_clean_rebuild_if_corrupted(self):
         """Force clean database rebuild if schema is corrupted"""
         try:
@@ -445,12 +481,24 @@ class DatabaseInitializer:
         return False
     
     def initialize_database(self):
-        """Initialize the complete database structure"""
+        """Initialize the complete database structure with corruption handling"""
         logger.info("🚀 Starting SANA Toolkit database initialization...")
         
-        # Check for database corruption and handle if needed
-        if self.force_clean_rebuild_if_corrupted():
-            logger.info("🔄 Proceeding with clean database rebuild...")
+        # FORCE CLEAN REBUILD FOR RENDER DEPLOYMENT
+        if os.environ.get('RENDER') == 'true' or os.environ.get('FLASK_ENV') == 'production':
+            logger.info("🌐 Production environment detected - forcing clean database rebuild")
+            if os.path.exists(self.db_path):
+                backup_path = f"{self.db_path}.backup.{int(time.time())}"
+                try:
+                    os.rename(self.db_path, backup_path)
+                    logger.info(f"📦 Backed up existing database to: {backup_path}")
+                except Exception:
+                    os.remove(self.db_path)
+                    logger.info("🗑️ Removed existing database for clean rebuild")
+        
+        # Check for corruption and rebuild if needed
+        elif self.force_clean_database_rebuild():
+            logger.info("🔄 Proceeding with clean database rebuild due to corruption...")
         
         # Check if database file exists
         db_exists = os.path.exists(self.db_path)

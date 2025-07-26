@@ -919,6 +919,10 @@ def require_login():
 
 if __name__ == '__main__':
     try:
+        # Force clean database rebuild on Render
+        if os.environ.get('RENDER') == 'true':
+            logger.info("🌐 Render deployment detected - ensuring clean database")
+            
         db_init = DatabaseInitializer()
         if db_init.initialize_database():
             logger.info("✅ Database initialized successfully")

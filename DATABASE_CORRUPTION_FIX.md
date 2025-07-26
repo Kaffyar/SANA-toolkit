@@ -16,31 +16,43 @@ The deployment logs showed database corruption errors:
 - **Before**: `idx_otp_user_id ON user_otp(user_id)`
 - **After**: `idx_otp_identifier ON user_otp(identifier)`
 
-### 2. **Added Corruption Detection**
+### 2. **Added Improved Corruption Detection**
 ```python
-def force_clean_rebuild_if_corrupted(self):
-    """Force clean database rebuild if schema is corrupted"""
+def force_clean_database_rebuild(self):
+    """Force complete database rebuild when schema is corrupted"""
     try:
-        # Test if schema is valid
+        # Check if we can read basic schema
         conn = self.create_connection()
         if conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM user_otp LIMIT 1")
+            # Test critical tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_otp'")
+            result = cursor.fetchone()
+            if result:
+                # Test if identifier column exists properly
+                cursor.execute("PRAGMA table_info(user_otp)")
+                columns = [col[1] for col in cursor.fetchall()]
+                if 'identifier' not in columns:
+                    logger.warning("⚠️ user_otp table missing identifier column")
+                    raise sqlite3.Error("Schema corruption detected")
             conn.close()
-            return False  # No corruption detected
     except sqlite3.Error as e:
-        # Schema is corrupted, force rebuild
-        logger.warning(f"⚠️ Database schema corruption detected: {e}")
-        import os
+        logger.error(f"❌ Database schema is corrupted: {e}")
+        logger.info("🔄 Forcing complete database rebuild...")
+        
+        # Backup existing database
         if os.path.exists(self.db_path):
-            backup_path = f"{self.db_path}.backup.{int(time.time())}"
+            backup_path = f"{self.db_path}.corrupted.{int(time.time())}"
             try:
-                os.rename(self.db_path, backup_path)
-                logger.info(f"🗑️ Backed up corrupted database to: {backup_path}")
-            except OSError:
+                import shutil
+                shutil.move(self.db_path, backup_path)
+                logger.info(f"📦 Backed up corrupted database to: {backup_path}")
+            except Exception:
                 os.remove(self.db_path)
-                logger.info("🗑️ Removed corrupted database for clean rebuild")
-        return True  # Corruption detected, rebuild needed
+                logger.info("🗑️ Removed corrupted database file")
+        
+        return True  # Indicate rebuild is needed
+    return False  # No rebuild needed
 ```
 
 ### 3. **Added Index Recreation Logic**
