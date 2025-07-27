@@ -757,13 +757,12 @@ def verify_otp_database_fallback():
                     return jsonify(create_error_response('Registration session expired. Please start over.')), 400
                 else:
                     logger.info(f"✅ Found temp_id {temp_id} for {email} in database")
-                
-                # FIXED: Use the database temp_id instead of the request temp_id
-                # The database temp_id is more reliable than the one from the request
-                logger.info(f"🔄 Using database temp_id: {temp_id} for verification")
-                
-                # Try to verify OTP with stored password from database
-                success, message = user_manager.verify_signup_otp(temp_id, otp_code)
+            
+            # FIXED: Always verify OTP with the temp_id we have
+            logger.info(f"🔄 Using temp_id: {temp_id} for verification")
+            
+            # Try to verify OTP with stored password from database
+            success, message = user_manager.verify_signup_otp(temp_id, otp_code)
         
         if success:
             if otp_type == 'login':
