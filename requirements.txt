@@ -5,4 +5,5 @@ requests==2.31.0
 Werkzeug==2.3.7
 reportlab==4.0.4
 gunicorn==21.2.0
+sublist3r==1.0.4
 # Optional: python-nmap==0.7.1  # Uncomment if nmap is available on the system
