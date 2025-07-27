@@ -4,6 +4,7 @@ import logging
 import re
 import time
 import secrets
+import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Dict, Any, Tuple, Optional, Union
@@ -735,8 +736,15 @@ def verify_otp_database_fallback():
             logger.info(f"🔄 User does not exist, treating as signup")
             otp_type = 'signup'
             # For signup, we need temp_id - try to get from request or database
-            temp_id = data.get('temp_user_id')
-            logger.info(f"🔄 temp_id from request: {temp_id}")
+            request_temp_id = data.get('temp_user_id')
+            logger.info(f"🔄 temp_id from request: {request_temp_id}")
+            
+            # Always try to get the most recent temp_id from database
+            db_temp_id = user_manager.find_temp_id_by_email(email)
+            logger.info(f"🔄 temp_id from database: {db_temp_id}")
+            
+            # Use database temp_id if available, otherwise use request temp_id
+            temp_id = db_temp_id if db_temp_id else request_temp_id
             
             if not temp_id:
                 # Try to find temp_id from database using email
@@ -746,12 +754,16 @@ def verify_otp_database_fallback():
                 
                 if not temp_id:
                     logger.warning(f"⚠️ No temp_id found for signup verification of {email}")
-                    return jsonify(create_error_response('Account already exists. Please use login instead.')), 400
+                    return jsonify(create_error_response('Registration session expired. Please start over.')), 400
                 else:
                     logger.info(f"✅ Found temp_id {temp_id} for {email} in database")
-            
-            # Try to verify OTP with stored password from database
-            success, message = user_manager.verify_signup_otp(temp_id, otp_code)
+                
+                # FIXED: Use the database temp_id instead of the request temp_id
+                # The database temp_id is more reliable than the one from the request
+                logger.info(f"🔄 Using database temp_id: {temp_id} for verification")
+                
+                # Try to verify OTP with stored password from database
+                success, message = user_manager.verify_signup_otp(temp_id, otp_code)
         
         if success:
             if otp_type == 'login':
